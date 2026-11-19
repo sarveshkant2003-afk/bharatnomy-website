@@ -1,0 +1,76 @@
+/* DESIGN.md §2. Every colour, size and rhythm on the site comes from here. */
+:root {
+  /* colour: one accent, by rule */
+  --paper: #F2F3EF;
+  --paper-raised: #FBFBF8;
+  --paper-back: color-mix(in srgb, #F2F3EF 96%, #16181C);   /* footer "back cover" */
+  --grid-minor: rgba(22, 24, 28, 0.02);
+  --grid-major: rgba(22, 24, 28, 0.05);
+  --ink: #16181C;
+  --ink-soft: #4C535C;
+  --ink-faint: rgba(22, 24, 28, 0.32);   /* hairlines and ticks only, never text */
+  --accent: #2346C7;
+  --accent-wash: rgba(35, 70, 199, 0.14);
+  --accent-ink: #F7F8F4;
+  --rule-blue: rgba(35, 70, 199, 0.13);  /* index-card ruling */
+
+  /* lens cardstock (categorical: tabs, chapter markers, stickers only) */
+  --lens-clm: #A9432F;  --lens-clm-ink: var(--paper);
+  --lens-eng: #D9A21B;  --lens-eng-ink: var(--ink);
+  --lens-mac: #4A7556;  --lens-mac-ink: var(--paper);
+  --lens-eqt: #3F5F8F;  --lens-eqt-ink: var(--paper);
+  --lens-com: #7D4E7A;  --lens-com-ink: var(--paper);
+
+  /* lens tints: light grounds for sections, cards and panels (colour pass, 19 Nov 2026) */
+  --tint-clm: #F5E4DE;
+  --tint-eng: #F8EED2;
+  --tint-mac: #E2ECE3;
+  --tint-eqt: #DFE6F0;
+  --tint-com: #EFE3ED;
+
+  /* type */
+  --f-display: "Big Shoulders Display", "Archivo", system-ui, sans-serif;
+  --f-text: "Geist", system-ui, sans-serif;
+  --f-mono: "Geist Mono", ui-monospace, "SF Mono", Menlo, monospace;
+
+  --t-mega: clamp(4.5rem, 14vw, 13rem);
+  --t-xl: clamp(3.25rem, 2rem + 4.2vw, 6rem);
+  --t-l: clamp(2rem, 1.5rem + 1.6vw, 3.2rem);
+  --t-m: clamp(1.35rem, 1.15rem + 0.6vw, 1.9rem);
+  --t-body: 1.0625rem;
+  --t-small: 0.9375rem;
+  --t-label: 0.72rem;
+  --measure: 62ch;
+
+  --track-display: -0.012em;
+  --track-label: 0.08em;
+
+  /* rhythm: 4px base; the paper grid is 8px minor / 40px major */
+  --s-1: 4px;  --s-2: 8px;  --s-3: 12px; --s-4: 16px; --s-5: 24px;
+  --s-6: 32px; --s-7: 40px; --s-8: 56px; --s-9: 80px; --s-10: 120px; --s-11: 160px;
+  --grid: 40px;
+  --gutter: clamp(16px, 4vw, 40px);
+  --page-max: 1440px;
+
+  /* lines */
+  --hair: 1px solid var(--ink);
+  --hair-soft: 1px solid var(--ink-faint);
+  --cut: 1px dashed var(--ink);
+
+  /* motion */
+  --ease-out: cubic-bezier(0.2, 0.7, 0.2, 1);
+}
+
+/* Inverted ground (home chapter IV): two-stop accent, same hue */
+.ground-ink {
+  --paper-local: var(--ink);
+  --ink: #F2F3EF;
+  --ink-soft: #B9BFC7;
+  --ink-faint: rgba(242, 243, 239, 0.34);
+  --accent: #93A9F5;
+  --accent-wash: rgba(147, 169, 245, 0.22);
+  --grid-minor: rgba(242, 243, 239, 0.02);
+  --grid-major: rgba(242, 243, 239, 0.05);
+  background-color: #16181C;
+  color: var(--ink);
+}

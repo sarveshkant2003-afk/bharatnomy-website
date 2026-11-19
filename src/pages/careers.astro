@@ -1,0 +1,16 @@
+---
+// BN-JOB: a single note pinned to the page. Short pages are allowed to be short.
+import Notebook from '../layouts/Notebook.astro';
+import IndexCard from '../components/IndexCard.astro';
+import '../styles/pages.css';
+---
+<Notebook title="Careers" description="Bharatnomy is a young firm. Write to us and tell us what you want to work on." code="BN-JOB">
+  <div class="job sheet bleed bleed-mac">
+    <h1 class="visually-hidden">Careers</h1>
+    <IndexCard class="job-card" title="We're building the team." meta="BN-JOB · Careers" seed="careers" tone="eng" max={1} as="section" titleTag="h2">
+      <p>Early is the best time to shape what this becomes. Bharatnomy is a young firm, which means the people who join now will have an outsized hand in what it becomes: not just the research, but how we work and what "rigorous but readable" ends up meaning in practice.</p>
+      <p>We are not running a formal hiring process yet, but we are always interested in hearing from people who think across disciplines rather than staying in one lane: economists who read policy, policy people who understand markets, researchers who can write for a reader who is not a specialist.</p>
+      <p>If that is you, tell us what you would want to work on, not just what you have done: <a href="mailto:namaste@bharatnomy.com?subject=Working%20with%20Bharatnomy">namaste@bharatnomy.com</a></p>
+    </IndexCard>
+  </div>
+</Notebook>

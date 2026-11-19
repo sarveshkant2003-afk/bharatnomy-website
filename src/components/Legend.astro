@@ -1,0 +1,30 @@
+---
+// Map legend set as a sticker: colour classes with units, or the hachure key.
+import { tilt } from '../lib/seed';
+interface Entry { color: string; label: string }
+interface Props { title: string; entries?: Entry[]; hachure?: boolean; range?: string; nodata?: boolean; class?: string; seed?: string }
+const { title, entries = [], hachure = false, range, nodata = false, class: cls = '', seed } = Astro.props;
+const gaps = [12, 8, 5.5, 3.6, 2.5];
+---
+<figure class:list={['legend', cls]} style={`--tilt:${tilt(seed ?? title, 0)}deg`}>
+  <figcaption class="label legend-title">{title}</figcaption>
+  {hachure ? (
+    <div class="legend-hatch">
+      <svg viewBox="0 0 150 22" width="150" height="22" aria-hidden="true">
+        {gaps.map((g, i) => (
+          <svg x={i * 30} y="0" width="28" height="22" viewBox="0 0 28 22">
+            {Array.from({ length: Math.ceil(50 / g) + 1 }, (_, k) => <line x1={k * g - 20} y1="22" x2={k * g} y2="0" stroke="currentColor" stroke-width="0.7" />)}
+            <rect x="0.5" y="0.5" width="27" height="21" fill="none" stroke="currentColor" stroke-width="0.75" />
+          </svg>
+        ))}
+      </svg>
+      <p class="label"><span>SPARSE = FEW HOT DAYS</span><span>DENSE = MANY</span></p>
+      {range && <p class="mono legend-range">{range}</p>}
+    </div>
+  ) : (
+    <ul class="legend-list">
+      {entries.map((e) => <li><span class="legend-swatch" style={`background:${e.color}`}></span><span class="mono">{e.label}</span></li>)}
+      {nodata && <li><span class="legend-swatch legend-swatch--nodata"></span><span class="mono">no data</span></li>}
+    </ul>
+  )}
+</figure>

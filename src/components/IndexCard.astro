@@ -1,0 +1,12 @@
+---
+// A ruled index card: blue rules, a soft margin line, square corners.
+import { tilt } from '../lib/seed';
+interface Props { title?: string; meta?: string; seed?: string; tape?: boolean; max?: number; tone?: 'clm' | 'eng' | 'mac' | 'eqt' | 'com'; class?: string; as?: 'article' | 'div' | 'section'; titleTag?: 'h2' | 'h3' }
+const { title, meta, seed = title ?? 'card', tape = false, max = 0.8, tone, class: cls = '', as: Tag = 'article', titleTag: H = 'h3' } = Astro.props;
+---
+<Tag class:list={['card', cls]} data-tone={tone} style={`--tilt:${tilt(seed, max)}deg`}>
+  {tape && <span class="tape tape--card" aria-hidden="true"></span>}
+  {title && <H class="display card-title">{title}</H>}
+  {meta && <p class="label card-meta">{meta}</p>}
+  <div class="card-body"><slot /></div>
+</Tag>

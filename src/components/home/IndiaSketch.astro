@@ -1,0 +1,42 @@
+---
+// India, state by state: every state in light outline, mapped states inked in
+// with their districts. The district lines draw themselves from the act's
+// --sc-p (CSS in index.astro). Rendered at build time.
+import { indiaGeo, districtsGeo } from '../../lib/data';
+import { frameFor, sketchOutlines, sketchDistricts, roughCircle } from '../../lib/sketch';
+
+interface Props { width?: number; height?: number; class?: string; thaneId?: string; mhId?: string }
+const { width = 620, height = 700, class: cls = '', thaneId = 'sk-thane', mhId = 'sk-mh' } = Astro.props;
+
+const india = indiaGeo();
+const frame = frameFor(india, width, height, 8);
+const states = sketchOutlines(india, frame, { roughness: 0.55 });
+const mh = districtsGeo();
+const uniform = Object.fromEntries((mh.features as any[]).map((f) => [String(f.properties.lgd), 1]));
+const ds = sketchDistricts(mh, { frame, values: uniform, range: [0, 1], gap: [4.2, 4.2], roughness: 0.5, hatchWeight: 0.5 });
+const thane = ds.find((d) => d.name === 'Thane');
+const mhState = states.find((s) => s.props.mapped);
+// label anchor: centre of Maharashtra's districts
+const cx = ds.reduce((a, d) => a + d.x, 0) / ds.length;
+const cy = ds.reduce((a, d) => a + d.y, 0) / ds.length;
+const ring = roughCircle(cx, cy, 22, 4242);
+---
+<svg class:list={['india', cls]} viewBox={`0 0 ${width} ${height}`} role="img" aria-label="Map of India by state. Maharashtra is inked in with its 35 districts; other states are outlines, not yet mapped.">
+  <g class="india-states">
+    {states.filter((s) => !s.props.mapped).map((s) => <path d={s.d}><title>{s.props.name}: not yet mapped</title></path>)}
+  </g>
+  <g class="india-mh" id={mhId}>
+    <g class="india-mh-fill">{ds.map((d) => <path d={d.plain} />)}</g>
+    <g class="india-mh-hatch">{ds.map((d) => <path d={d.hatch.join(' ')} />)}</g>
+    <g class="india-mh-lines">
+      {ds.map((d) => <path class="draw" pathLength="1" d={d.outline.join(' ')} id={d.name === 'Thane' ? thaneId : undefined}><title>{d.name}</title></path>)}
+    </g>
+    {mhState && <path class="india-mh-edge" d={mhState.d} />}
+  </g>
+  <g class="india-wp" id="sk-mh-pt">
+    <circle cx={cx} cy={cy} r="11" class="wp-fill" />
+    <path d={ring} class="wp-ring" />
+    <text x={cx} y={cy + 3.5} text-anchor="middle" class="wp-n">01</text>
+  </g>
+  {thane && <circle cx={thane.x} cy={thane.y} r="1" fill="none" id={`${thaneId}-pt`} />}
+</svg>

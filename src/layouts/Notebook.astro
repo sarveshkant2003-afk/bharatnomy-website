@@ -1,0 +1,57 @@
+---
+import { u } from '../lib/url';
+// Shared page shell: paper, grid, instrument strip, footer (PAGES.md).
+import '@fontsource/big-shoulders-display/700';
+import '@fontsource/big-shoulders-display/800';
+import '@fontsource/big-shoulders-display/900';
+import '@fontsource/geist/400.css';
+import '@fontsource/geist/400-italic.css';
+import '@fontsource/geist/500.css';
+import '@fontsource/geist/600.css';
+import '@fontsource/geist-mono/400.css';
+import '@fontsource/geist-mono/500.css';
+import '../styles/tokens.css';
+import '../styles/base.css';
+import '../styles/components.css';
+import InstrumentStrip from '../components/InstrumentStrip.astro';
+import Footer from '../components/Footer.astro';
+
+interface Props {
+  title: string;
+  description: string;
+  code: string;
+  coords?: string;
+  coordsLabel?: string;
+  noindex?: boolean;
+  bodyClass?: string;
+}
+const { title, description, code, coords, coordsLabel, noindex = false, bodyClass } = Astro.props;
+const fullTitle = title === 'Bharatnomy' ? title : `${title} · Bharatnomy`;
+---
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>{fullTitle}</title>
+    <meta name="description" content={description} />
+    {noindex && <meta name="robots" content="noindex" />}
+    <link rel="canonical" href={new URL(Astro.url.pathname, Astro.site)} />
+    <link rel="icon" href={u("/favicon.svg")} type="image/svg+xml" />
+    <meta name="theme-color" content="#F2F3EF" />
+    <script is:inline>document.documentElement.classList.add('js');</script>
+    <slot name="head" />
+  </head>
+  <body class={bodyClass}>
+    <a class="skip" href="#main">Skip to content</a>
+    <InstrumentStrip code={code} coords={coords} coordsLabel={coordsLabel} />
+    <main id="main">
+      <slot />
+    </main>
+    <Footer />
+    <script>
+      import '../scripts/notebook';
+    </script>
+    <slot name="end" />
+  </body>
+</html>

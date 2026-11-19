@@ -1,0 +1,9 @@
+---
+// Ink-outlined rectangle; primary is ink-filled. Hover: 2px offset ink shadow.
+interface Props { href?: string; primary?: boolean; arrow?: string; type?: 'button' | 'submit'; class?: string; id?: string; download?: string | boolean; [k: string]: any }
+const { href, primary = false, arrow = '→', type = 'button', class: cls = '', download, ...rest } = Astro.props;
+const classes = ['btn', { 'btn--primary': primary }, cls];
+---
+{href
+  ? <a href={href} class:list={classes} download={download} {...rest}><span><slot /></span>{arrow && <span class="btn-arrow" aria-hidden="true">{arrow}</span>}</a>
+  : <button type={type} class:list={classes} {...rest}><span><slot /></span>{arrow && <span class="btn-arrow" aria-hidden="true">{arrow}</span>}</button>}

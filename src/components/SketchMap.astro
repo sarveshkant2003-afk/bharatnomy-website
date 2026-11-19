@@ -1,0 +1,59 @@
+---
+// rough.js sketch of the district map, rendered at build time (DESIGN.md §5).
+// Hachure density encodes `values` (denser = higher) when given.
+import { districtsGeo, stateGeo } from '../lib/data';
+import { frameFor, sketchDistricts, roughCircle } from '../lib/sketch';
+import { fmt } from '../lib/format';
+
+interface Waypoint { lgd?: string; lon?: number; lat?: number; label: string }
+interface Props {
+  values?: Record<string, number | null>;
+  range?: [number, number];
+  width?: number; height?: number;
+  title: string; desc?: string;
+  waypoints?: Waypoint[];
+  selected?: string;
+  seedSalt?: number;
+  unit?: string;
+  pad?: number;
+  extend?: [number, number, number, number]; // extra lon/lat bbox to include [w,s,e,n]
+  colors?: Record<string, string | null>;     // fill colour per lgd (data maps are in colour)
+  class?: string;
+}
+const { values, range, width = 640, height = 470, title, desc, waypoints = [], selected, seedSalt = 0, unit = '', pad = 14, extend, colors, class: cls = '' } = Astro.props;
+const fc = districtsGeo();
+const fitTo: any = extend
+  ? { type: 'FeatureCollection', features: [...fc.features, { type: 'Feature', properties: {}, geometry: { type: 'MultiPoint', coordinates: [[extend[0], extend[1]], [extend[2], extend[3]]] } }] }
+  : stateGeo();
+const frame = frameFor(fitTo, width, height, pad);
+const ds = sketchDistricts(fc, { frame, values: values as any, range, seedSalt });
+const pts = waypoints.map((w, i) => {
+  let x: number, y: number;
+  if (w.lgd) { const d = ds.find((q) => q.lgd === w.lgd)!; x = d.x; y = d.y; }
+  else [x, y] = frame.project([w.lon!, w.lat!]);
+  return { ...w, x, y, n: String(i + 1).padStart(2, '0'), ring: roughCircle(x, y, 22, 900 + i) };
+});
+const route = pts.length > 1 ? 'M' + pts.map((p) => `${p.x.toFixed(1)},${p.y.toFixed(1)}`).join(' L') : '';
+---
+<svg class:list={['sketch', { 'sketch--color': !!colors }, cls]} viewBox={`0 0 ${width} ${height}`} role="img" aria-label={title}>
+  {desc && <desc>{desc}</desc>}
+  <g class="sketch-districts">
+    {ds.map((d) => (
+      <g class:list={['sk-d', { 'is-selected': d.lgd === selected }]} data-lgd={d.lgd} data-name={d.name}>
+        <path class="sk-hit" d={d.plain} style={colors?.[d.lgd] ? `fill:${colors[d.lgd]}` : undefined} />
+        {d.hatch.length > 0 && <path class="sk-hatch" d={d.hatch.join(' ')} />}
+        <path class="sk-line" d={d.outline.join(' ')} />
+        <title>{d.name}{values ? `: ${values[d.lgd] == null ? 'no data' : fmt(values[d.lgd] as number, 0)}${unit ? ' ' + unit : ''}` : ''}</title>
+      </g>
+    ))}
+  </g>
+  {route && <path class="wp-route" d={route} />}
+  {pts.map((p) => (
+    <g class="wp" transform-origin={`${p.x} ${p.y}`}>
+      <circle cx={p.x} cy={p.y} r="11" class="wp-fill" />
+      <path d={p.ring} class="wp-ring" />
+      <text x={p.x} y={p.y + 3.5} text-anchor="middle" class="wp-n">{p.n}</text>
+      <text x={p.x + 16} y={p.y + 4} class="wp-label">{p.label}</text>
+    </g>
+  ))}
+</svg>

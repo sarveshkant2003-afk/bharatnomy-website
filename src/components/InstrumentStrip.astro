@@ -1,0 +1,49 @@
+---
+import { u } from '../lib/url';
+// Top strip of every page (DESIGN.md §3). Scrolls away; not a fixed bar.
+interface Props { code: string; coords?: string; coordsLabel?: string }
+const { code, coords, coordsLabel = 'FOCUS' } = Astro.props;
+const path = Astro.url.pathname.replace(/\/$/, '') || '/';
+const links = [
+  { href: u('/research'), label: 'Research' },
+  { href: u('/datasets'), label: 'Datasets' },
+  { href: u('/atlas'), label: 'Atlas' },
+  { href: u('/about'), label: 'About' },
+  { href: u('/standards'), label: 'Standards' },
+];
+const all = [{ href: u('/'), label: 'Home', code: 'BN-000' }, { href: u('/research'), label: 'Research', code: 'BN-RES' }, { href: u('/datasets'), label: 'Datasets', code: 'BN-DATA' }, { href: u('/atlas'), label: 'Atlas', code: 'BN-DASH' }, { href: u('/about'), label: 'About', code: 'BN-ABT' }, { href: u('/standards'), label: 'Standards', code: 'BN-STD' }, { href: u('/careers'), label: 'Careers', code: 'BN-JOB' }];
+const home = u('/').replace(/\/$/, '') || '/';
+const isCurrent = (href: string) => { const h = href.replace(/\/$/, '') || '/'; return h === home ? path === home : path === h || path.startsWith(h + '/'); };
+---
+<header class="strip">
+  <div class="lens-band" aria-hidden="true"><span></span><span></span><span></span><span></span><span></span></div>
+  <div class="strip-row">
+    <a href={u("/")} class="strip-mark" aria-label="Bharatnomy, home">BHARATNOMY</a>
+    <nav class="strip-nav" aria-label="Main">
+      <ul>
+        {links.map((l) => (
+          <li>
+            <a href={l.href} class="label" aria-current={isCurrent(l.href) ? 'page' : undefined}>
+              {l.label}
+              {isCurrent(l.href) && <svg class="strip-underline" viewBox="0 0 100 6" preserveAspectRatio="none" aria-hidden="true"><path d="M1,3.6 C18,2.2 36,4.6 55,3.1 S88,2.4 99,3.8" /></svg>}
+            </a>
+          </li>
+        ))}
+      </ul>
+    </nav>
+    {coords && <p class="strip-coords label"><span class="soft">{coordsLabel}</span> <span class="num" data-strip-coords>{coords}</span></p>}
+    <p class="strip-code label">{code}</p>
+    <button class="strip-contents label" popovertarget="contents" type="button">Contents</button>
+  </div>
+  <nav id="contents" class="contents" popover aria-label="Contents">
+    <div class="contents-head">
+      <p class="label">BHARATNOMY · CONTENTS</p>
+      <button class="label contents-close" popovertarget="contents" popovertargetaction="hide" type="button">Close</button>
+    </div>
+    <ol class="contents-list">
+      {all.map((l) => (
+        <li><a href={l.href} aria-current={isCurrent(l.href) ? 'page' : undefined}><span class="contents-title display">{l.label}</span><span class="contents-dots" aria-hidden="true"></span><span class="label">{l.code}</span></a></li>
+      ))}
+    </ol>
+  </nav>
+</header>

@@ -1,0 +1,139 @@
+---
+import { u } from '../lib/url';
+// BN-DASH: the Atlas (MAP.md). Controls on the left page, the map in the
+// middle, the district panel in the right margin, the year ruler below.
+// Everything is driven by src/scripts/atlas/main.ts and lives in the URL.
+import Notebook from '../layouts/Notebook.astro';
+import StickerLabel from '../components/StickerLabel.astro';
+import { stats, districts } from '../lib/data';
+import { coords } from '../lib/format';
+import { METRICS } from '../config/metrics.mjs';
+import { DATASETS } from '../config/data.mjs';
+import '../styles/atlas.css';
+
+const s = stats();
+const ds = districts();
+---
+<Notebook title="Atlas" description="District-level climate records for Maharashtra: pick a measure, move through the years, open any district." code="BN-DASH" coords={coords(s.state_centroid[0], s.state_centroid[1])} coordsLabel="STATE 01 · MAHARASHTRA" bodyClass="atlas-page">
+  <div class="atlas" data-atlas data-tab="measure">
+    <header class="atlas-head bleed bleed-clm">
+      <h1 class="display t-mega atlas-title">ATLAS</h1>
+      <div class="atlas-intro">
+        <StickerLabel text="BN-DASH · MAHARASHTRA · DISTRICTS" tone="ink" seed="atlas" />
+        <p class="t-lead">District-level climate records for Maharashtra. Pick a measure, move through the years, open any district.</p>
+        <p class="soft atlas-india">India, state by state: Maharashtra is the first state in the Atlas. More states join as their data clears our verification standard.</p>
+      </div>
+    </header>
+
+    <p class="atlas-error" data-atlas-error hidden>The map could not load. The data is still available on the <a href={u("/datasets")}>datasets page</a>.</p>
+
+    <div class="atlas-body">
+      <!-- ============================================== controls (left page) -->
+      <aside class="atlas-controls atlas-pane" data-pane="measure" aria-label="Map controls">
+        <div class="ctl">
+          <label class="label" for="atlas-state">State</label>
+          <select id="atlas-state" disabled><option>Maharashtra</option></select>
+        </div>
+
+        <div class="ctl">
+          <p class="label" id="ds-label">Dataset</p>
+          <div class="ds-tabs" role="tablist" aria-labelledby="ds-label">
+            {DATASETS.map((d) => <button type="button" role="tab" class="ds-tab" data-ds={d.slug} aria-selected="false">{d.slug === 'temperature' ? 'Temperature' : 'Rainfall'}</button>)}
+          </div>
+        </div>
+
+        <fieldset class="ctl">
+          <legend class="label">Measure</legend>
+          <ul class="metric-list">
+            {METRICS.map((m) => (
+              <li data-metric-item data-dataset={m.dataset} hidden={m.dataset !== 'temperature'}>
+                <label class="metric">
+                  <input type="radio" name="metric" value={m.id} />
+                  <span class="metric-name">{m.label}</span>
+                </label>
+              </li>
+            ))}
+          </ul>
+        </fieldset>
+        <aside class="mnote ctl-help" data-help aria-live="polite"></aside>
+
+        <fieldset class="ctl">
+          <legend class="label">View</legend>
+          <div class="seg">
+            <label><input type="radio" name="view" value="year" /> <span>Single year</span></label>
+            <label><input type="radio" name="view" value="decade" /> <span>Decade average</span></label>
+            <label><input type="radio" name="view" value="change" /> <span>Change</span></label>
+          </div>
+          <div class="periods" data-change-periods hidden>
+            <p class="soft">Later period minus earlier period.</p>
+            <div class="period"><span class="label">Earlier</span><input type="number" data-period="a.0" aria-label="Earlier period, first year" /><span aria-hidden="true">to</span><input type="number" data-period="a.1" aria-label="Earlier period, last year" /></div>
+            <div class="period"><span class="label">Later</span><input type="number" data-period="b.0" aria-label="Later period, first year" /><span aria-hidden="true">to</span><input type="number" data-period="b.1" aria-label="Later period, last year" /></div>
+          </div>
+        </fieldset>
+
+        <fieldset class="ctl">
+          <legend class="label">Classes</legend>
+          <div class="seg">
+            <label><input type="radio" name="classes" value="quantile" /> <span>Quantile (5)</span></label>
+            <label><input type="radio" name="classes" value="equal" /> <span>Equal interval (5)</span></label>
+          </div>
+          <p class="soft small" data-classes-note hidden>Diverging measures are always symmetric around zero.</p>
+        </fieldset>
+
+        <div class="ctl ctl-toggles">
+          <button type="button" class="btn" data-toggle="sketch" aria-pressed="false"><span>Sketch view</span></button>
+          <button type="button" class="btn" data-toggle="table" aria-pressed="false"><span>Show as table</span></button>
+          <button type="button" class="btn" data-png><span>Save map as PNG</span><span class="btn-arrow" aria-hidden="true">↓</span></button>
+        </div>
+      </aside>
+
+      <!-- ===================================================== the map -->
+      <section class="atlas-stage" aria-label="Map">
+        <p class="atlas-maptitle"><span class="display" data-map-title></span> <span class="label atlas-period" data-map-period></span></p>
+        <div class="atlas-mapwrap">
+          <div class="atlas-map" data-map tabindex="-1"></div>
+          <div class="atlas-sketch" data-sketch hidden></div>
+          <div class="atlas-tablewrap table-wrap" data-table hidden></div>
+          <div class="atlas-tip label" data-tip hidden></div>
+          <figure class="legend atlas-legend" data-legend></figure>
+        </div>
+        <aside class="mnote atlas-caveat"><span class="label mnote-label">Read with care</span>Figures are district averages of IMD's gridded data on 2011 boundaries. They are best compared across years and districts, not with a single weather station. Thane includes today's Palghar.</aside>
+        <p class="source label" data-source></p>
+        <p class="visually-hidden" aria-live="polite" data-sr></p>
+      </section>
+
+      <!-- ======================================= district panel (margin) -->
+      <aside class="atlas-panel atlas-pane" data-pane="district" aria-label="District">
+        <div class="atlas-search">
+          <label class="label" for="district-search">Find a district</label>
+          <input id="district-search" type="search" list="district-list" autocomplete="off" placeholder="Type a name, then Enter" />
+          <datalist id="district-list">{ds.map((d) => <option value={d.name} />)}</datalist>
+        </div>
+        <div class="dp card-flat" data-panel>
+          <div class="panel-empty"><p class="t-lead">Select a district on the map, or search for one.</p></div>
+        </div>
+      </aside>
+
+      <div class="atlas-pane atlas-pane-table" data-pane="table"><div class="table-wrap" data-table-m></div></div>
+    </div>
+
+    <!-- ======================================================= year ruler -->
+    <div class="atlas-rulerbar">
+      <button type="button" class="btn atlas-play" data-play aria-pressed="false"><span>Play</span></button>
+      <div class="ruler" data-ruler>
+        <svg viewBox="0 0 1000 64" preserveAspectRatio="none" aria-hidden="true"></svg>
+        <div class="ruler-thumb" role="slider" tabindex="0" aria-label="Year" aria-valuemin="1951" aria-valuemax="2024" aria-valuenow="2024"><span>2024</span></div>
+      </div>
+    </div>
+
+    <nav class="atlas-tabs" aria-label="Atlas sections" role="tablist">
+      <button type="button" role="tab" data-tab-btn="measure" aria-selected="true">Measure</button>
+      <button type="button" role="tab" data-tab-btn="district" aria-selected="false">District</button>
+      <button type="button" role="tab" data-tab-btn="table" aria-selected="false">Table</button>
+    </nav>
+  </div>
+
+  <script>
+    import '../scripts/atlas/main';
+  </script>
+</Notebook>

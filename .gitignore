@@ -1,0 +1,8 @@
+node_modules/
+dist/
+.astro/
+.cache/
+.DS_Store
+scrollcraft/builds/*/lab/
+scrollcraft/builds/*/node_modules/
+public/maplibre/

@@ -1,0 +1,364 @@
+---
+import { u } from '../lib/url';
+// Hidden component kit at /_kit (Astro ignores files that start with "_",
+// so the route is generated from a param). Not linked, not indexed.
+import Notebook from '../layouts/Notebook.astro';
+import StickerLabel from '../components/StickerLabel.astro';
+import MarginNote from '../components/MarginNote.astro';
+import Highlighter from '../components/Highlighter.astro';
+import Folio from '../components/Folio.astro';
+import InstrumentPanel from '../components/InstrumentPanel.astro';
+import Ticker from '../components/Ticker.astro';
+import LensTab from '../components/LensTab.astro';
+import SpecimenTag from '../components/SpecimenTag.astro';
+import IndexCard from '../components/IndexCard.astro';
+import SketchMap from '../components/SketchMap.astro';
+import TrendChart from '../components/TrendChart.astro';
+import Legend from '../components/Legend.astro';
+import Button from '../components/Button.astro';
+import { stats, districts, metricFile, yearSlice } from '../lib/data';
+import { classify, STOPS } from '../lib/scales';
+import { fmt, signed, coords } from '../lib/format';
+import { METRICS } from '../config/metrics.mjs';
+
+export function getStaticPaths() {
+  return [{ params: { kit: '_kit' } }];
+}
+
+const s = stats();
+const ds = districts();
+const byName = (n: string) => ds.find((d) => d.name === n)!;
+const nagpur = byName('Nagpur');
+const tY = s.temp_last_year, rY = s.rain_last_year;
+const tm = (id: string) => metricFile('temperature', id);
+const rm = (id: string) => metricFile('rainfall', id);
+const at = (m: ReturnType<typeof tm>, lgd: string, y: number) => m.values[lgd][m.years.indexOf(y)] as number;
+
+const hot = tm('days_tmax_above_p90');
+const hotYear = yearSlice(hot, tY) as Record<string, number>;
+const rank = Object.entries(hotYear).sort((a, b) => b[1] - a[1]).findIndex(([k]) => k === nagpur.lgd) + 1;
+const nagpurRows = [
+  { label: 'Hottest day', value: `${fmt(at(tm('tmax_highest_c'), nagpur.lgd, tY), 1)} °C` },
+  { label: 'Unusually hot days', value: `${at(hot, nagpur.lgd, tY)}`, note: `rank ${rank} of ${ds.length}` },
+  { label: 'Days at 40 °C+', value: `${at(tm('days_tmax_40c_or_more'), nagpur.lgd, tY)}` },
+  { label: 'Avg max vs 1981–2010', value: `${signed(at(tm('tmax_mean_anomaly_c'), nagpur.lgd, tY), 2)} °C` },
+];
+const dep = rm('rainfall_jun_sep_departure_pct');
+const nagpurRain = [
+  { label: 'Monsoon rainfall', value: `${fmt(at(rm('rainfall_jun_sep_mm'), nagpur.lgd, rY), 0)} mm` },
+  { label: 'vs 1971–2020', value: `${signed(at(dep, nagpur.lgd, rY), 1)}%` },
+  { label: 'Wettest day', value: `${fmt(at(rm('rx1day_mm'), nagpur.lgd, rY), 1)} mm` },
+];
+
+// legends: one per scale kind, from real values
+const meta = (id: string) => METRICS.find((m) => m.id === id)!;
+const legendFor = (id: string, dataset: string, year: number) => {
+  const m = meta(id);
+  const f = metricFile(dataset, id);
+  const vals = Object.values(yearSlice(f, year)) as number[];
+  return { m, c: classify({ kind: m.scale as any, breaks: m.breaks, values: vals, decimals: m.decimals, unit: m.unit, fixed: m.fixed, categories: m.categories }) };
+};
+const legends = [
+  legendFor('days_tmax_above_p90', 'temperature', tY),
+  legendFor('tmax_mean_anomaly_c', 'temperature', tY),
+  legendFor('rainfall_annual_mm', 'rainfall', rY),
+  legendFor('rainfall_jun_sep_departure_pct', 'rainfall', rY),
+  legendFor('monsoon_longest_dry_spell_days', 'rainfall', rY),
+  legendFor('spi_jun_sep', 'rainfall', rY),
+  legendFor('monsoon_category', 'rainfall', rY),
+];
+
+const tempDs = s.datasets.find((d) => d.slug === 'temperature')!;
+const rainDs = s.datasets.find((d) => d.slug === 'rainfall')!;
+const tempSource = `IMD GRIDDED DAILY TEMPERATURE (1° GRID), ${s.temp_first_year}–${s.temp_last_year} · DISTRICT INDICES COMPUTED BY BHARATNOMY`;
+const rainSource = `IMD GRIDDED DAILY RAINFALL (0.25° GRID), ${s.rain_first_year}–${s.rain_last_year} · DISTRICT INDICES COMPUTED BY BHARATNOMY`;
+
+const compare = ['Chandrapur', 'Ratnagiri', 'Pune'].map((n) => byName(n));
+const dashes = ['', '5 3', '1.5 2.5'];
+const hv = Object.values(hotYear).sort((a, b) => a - b);
+const hotRange: [number, number] = [hv[0], hv[hv.length - 1]];
+const sindhudurg = s.hottest_change_district_lgd;
+---
+<Notebook title="Kit" description="Bharatnomy design system: every component in every state." code="BN-KIT" coords={coords(s.state_centroid[0], s.state_centroid[1])} coordsLabel="MAHARASHTRA" noindex>
+  <div class="kit">
+    <header class="kit-head sheet">
+      <h1 class="display t-mega kit-title">KIT</h1>
+      <div class="kit-intro">
+        <StickerLabel text="BN-KIT · HIDDEN · NOT LINKED" tone="ink" seed="kit" />
+        <p class="measure">Every component on the site, in every state, drawn from the real data at commit <span class="mono">{s.data.short}</span>. This page is for review only.</p>
+      </div>
+    </header>
+
+    <!-- 01 tokens -->
+    <section class="kit-sec sheet" aria-labelledby="k-tokens">
+      <h2 id="k-tokens" class="kit-h label">01 · Tokens</h2>
+      <div class="kit-body">
+        <ul class="swatches">
+          {[['--paper', '#F2F3EF'], ['--paper-raised', '#FBFBF8'], ['--ink', '#16181C'], ['--ink-soft', '#4C535C'], ['--accent', '#2346C7'], ['--accent-wash', 'rgba(35,70,199,.14)']].map(([n, v]) => (
+            <li><span class="sw" style={`background:${v}`}></span><span class="mono">{n}</span><span class="mono soft">{v}</span></li>
+          ))}
+        </ul>
+        <ul class="swatches">
+          {[['clm', 'Climate adaptation & resilience', '#A9432F'], ['eng', 'Energy policy & markets', '#D9A21B'], ['mac', 'Macroeconomic health', '#4A7556'], ['eqt', 'Equity markets', '#3F5F8F'], ['com', 'Commodity markets', '#7D4E7A']].map(([k, n, v]) => (
+            <li><span class="sw" style={`background:${v}`}></span><span class="mono">--lens-{k}</span><span class="mono soft">{n}</span></li>
+          ))}
+        </ul>
+      </div>
+    </section>
+
+    <!-- 02 type -->
+    <section class="kit-sec sheet" aria-labelledby="k-type">
+      <h2 id="k-type" class="kit-h label">02 · Type</h2>
+      <div class="kit-body type-spec">
+        <p class="display t-xl">Seventy-four summers</p>
+        <p class="display t-l">Five lenses on one economy.</p>
+        <p class="display t-m">Every claim cited. Every dataset open.</p>
+        <p class="t-lead measure">Bharatnomy is an independent research firm that studies India's economy layer by layer, combining economics, finance, law and policy.</p>
+        <p class="measure">Before we say anything about India, we map one state properly. Maharashtra first, district by district, from the government's own daily records. Then the next state, with the same method.</p>
+        <p class="label">Label · Geist Mono 500 · 0.72rem · tracked 0.08em</p>
+        <p class="mono">Data · {nagpur.name.toUpperCase()} · {tY} · TMAX HIGHEST {fmt(at(tm('tmax_highest_c'), nagpur.lgd, tY), 1)} °C</p>
+      </div>
+    </section>
+
+    <!-- 03 scales -->
+    <section class="kit-sec sheet" aria-labelledby="k-scales">
+      <h2 id="k-scales" class="kit-h label">03 · Colour scales and legends</h2>
+      <div class="kit-body legends">
+        {legends.map(({ m, c }) => <Legend title={`${m.short} · ${m.dataset === 'temperature' ? tY : rY}${m.unit && m.unit !== 'SPI' ? ' · ' + m.unit.toUpperCase() : ''}`} entries={c.legend} nodata={m.id === 'days_tmax_above_p90'} />)}
+        <Legend title="Sketch view key" hachure />
+        <div class="ramps">
+          {Object.entries(STOPS).map(([k, v]) => (
+            <div class="ramp"><span class="mono">{k}</span><span class="ramp-cells">{v.map((c) => <span style={`background:${c}`}></span>)}</span></div>
+          ))}
+        </div>
+      </div>
+    </section>
+
+    <!-- 04 stickers -->
+    <section class="kit-sec sheet" aria-labelledby="k-sticker">
+      <h2 id="k-sticker" class="kit-h label">04 · StickerLabel</h2>
+      <div class="kit-body stickers">
+        <StickerLabel text="FIELD NOTEBOOK · VOL. 01 · MAHARASHTRA" seed="s1" />
+        <StickerLabel text="BN-DASH · MAHARASHTRA · DISTRICTS" tone="ink" seed="s2" />
+        <StickerLabel text="2 LIVE · 3 PLANNED" tone="accent" seed="s3" />
+        <StickerLabel text="ARCHITECTURE PHASE" seed="s4" tape />
+        <StickerLabel text="COMING" seed="s5" dashed />
+        <StickerLabel text="FIRST DATA PUBLISHED" tone="clm" seed="s6" />
+        <StickerLabel text="IN PREPARATION" tone="eng" seed="s7" />
+        <StickerLabel text="IN PREPARATION" tone="mac" seed="s8" />
+        <StickerLabel text="IN PREPARATION" tone="eqt" seed="s9" />
+        <StickerLabel text="IN PREPARATION" tone="com" seed="s10" />
+        <StickerLabel text="TO BE PUBLISHED" seed="s11" />
+      </div>
+    </section>
+
+    <!-- 05 highlighter + folio -->
+    <section class="kit-sec sheet" aria-labelledby="k-hl">
+      <h2 id="k-hl" class="kit-h label">05 · Highlighter and Folio</h2>
+      <div class="kit-body">
+        <p class="display t-xl hl-demo">India's economy, read as <Highlighter seed="home">one connected system.</Highlighter></p>
+        <div class="folios">
+          <Folio code="BN-000" chapter="II" title="FIVE LENSES" />
+          <Folio code="BN-000" chapter="III" title="SEVENTY-FOUR SUMMERS" />
+          <Folio code="BN-STD" title="§3 METHODOLOGY" />
+        </div>
+      </div>
+    </section>
+
+    <!-- 06 margin note + leader -->
+    <section class="kit-sec sheet kit-notes" aria-labelledby="k-notes">
+      <h2 id="k-notes" class="kit-h label">06 · MarginNote and LeaderLine</h2>
+      <div class="kit-body notes-demo">
+        <p class="measure">Daily temperature since <span id="k-target-1" class="target">{s.temp_first_year}</span>, daily rainfall since {s.rain_first_year}, from IMD's gridded records. The data uses 2011 boundaries, so <span id="k-target-2" class="target">Thane</span> includes today's Palghar.</p>
+      </div>
+      <div class="notes-margin">
+        <MarginNote to="k-target-1" label="Statistician's aside">A 1-degree grid cell is about 110 km wide, so it smooths out the hottest afternoons.</MarginNote>
+        <MarginNote to="k-target-2">Thane includes today's Palghar. The data uses 2011 boundaries, so we do too.</MarginNote>
+      </div>
+    </section>
+
+    <!-- 07 instrument panel -->
+    <section class="kit-sec sheet" aria-labelledby="k-panel">
+      <h2 id="k-panel" class="kit-h label">07 · InstrumentPanel</h2>
+      <div class="kit-body panels">
+        <InstrumentPanel title={`${nagpur.name.toUpperCase()} · ${tY} · TEMPERATURE`} rows={nagpurRows} foot={`LGD ${nagpur.lgd} · CENSUS 2011 BOUNDARY`} />
+        <InstrumentPanel title={`${nagpur.name.toUpperCase()} · ${rY} · MONSOON`} rows={nagpurRain} />
+      </div>
+    </section>
+
+    <!-- 08 ticker -->
+    <section class="kit-sec kit-full" aria-labelledby="k-ticker">
+      <div class="sheet"><h2 id="k-ticker" class="kit-h label">08 · Ticker (pauses on hover and focus)</h2></div>
+      <Ticker facts={s.ticker.map((t) => t.text)} />
+    </section>
+
+    <!-- 09 lens tabs -->
+    <section class="kit-sec sheet" aria-labelledby="k-lens">
+      <h2 id="k-lens" class="kit-h label">09 · LensTab</h2>
+      <div class="kit-body lenses">
+        <LensTab n={1} lens="clm" name="Climate adaptation & resilience" line="How India's institutions are, and are not, preparing for a hotter, less predictable future." focus={['Institutional readiness', 'Climate risk', 'Resilience infrastructure']} status="FIRST DATA PUBLISHED" />
+        <LensTab n={2} lens="eng" name="Energy policy & markets" line="The economics of India's move from coal to renewables." focus={['Transition economics', 'Policy design', 'Market signals']} status="IN PREPARATION" />
+        <LensTab n={3} lens="mac" name="Macroeconomic health" line="Growth, inflation and fiscal capacity, read plainly and traced to primary data." focus={['Growth', 'Inflation', 'Fiscal capacity']} status="IN PREPARATION" />
+        <LensTab n={4} lens="eqt" name="Equity markets" line="What is moving Indian capital markets and why, separated from the market narrative." focus={['Market drivers', 'Investor behaviour']} status="IN PREPARATION" />
+        <LensTab n={5} lens="com" name="Commodity markets" line="The real-economy forces behind commodity prices." focus={['Price formation', 'Supply dynamics']} status="IN PREPARATION" />
+      </div>
+    </section>
+
+    <!-- 10 specimen tags -->
+    <section class="kit-sec sheet" aria-labelledby="k-tags">
+      <h2 id="k-tags" class="kit-h label">10 · SpecimenTag (live and planned)</h2>
+      <div class="kit-body tagline">
+        <svg class="tagline-string" viewBox="0 0 1000 20" preserveAspectRatio="none" aria-hidden="true"><path d="M0,6 C250,14 750,14 1000,6" /></svg>
+        <SpecimenTag dataset={tempDs} />
+        <SpecimenTag dataset={rainDs} />
+        <SpecimenTag planned="Original survey data" />
+        <SpecimenTag planned="Cleaned government data" />
+        <SpecimenTag planned="Proprietary indices" />
+      </div>
+    </section>
+
+    <!-- 11 index cards -->
+    <section class="kit-sec sheet" aria-labelledby="k-cards">
+      <h2 id="k-cards" class="kit-h label">11 · IndexCard</h2>
+      <div class="kit-body cards">
+        <IndexCard title="Srikar" meta="Partner & CEO" tape>
+          <p>Trained in the natural sciences, with a master's in medical nanotechnology. Studied public policy at the University of Chicago. Focuses on qualitative, field-based research.</p>
+        </IndexCard>
+        <IndexCard title="Kartik" meta="Partner">
+          <p>A policy and social-impact professional who runs his own think-and-do tank. Previously with the World Bank in Washington, D.C., and the Government of Maharashtra.</p>
+        </IndexCard>
+        <IndexCard title="Tracking Heat Action Plans across Maharashtra." meta="Research · first project" seed="research">
+          <p>In its architecture phase; topic selection is still being finalised.</p>
+        </IndexCard>
+      </div>
+    </section>
+
+    <!-- 12 sketch maps -->
+    <section class="kit-sec sheet" aria-labelledby="k-sketch">
+      <h2 id="k-sketch" class="kit-h label">12 · SketchMap and Waypoint</h2>
+      <div class="kit-body sketches">
+        <figure class="sk-fig">
+          <SketchMap title="Maharashtra's 35 districts, outline only" width={520} height={380} seedSalt={1} />
+          <figcaption class="label">Outline · 2011 boundaries · {ds.length} districts</figcaption>
+        </figure>
+        <figure class="sk-fig sk-fig--wide">
+          <SketchMap
+            title={`Unusually hot days by district, ${tY}`}
+            desc={`Hachure density encodes days above the 1991 to 2020 90th percentile in ${tY}.`}
+            values={hotYear} range={hotRange} unit="days" width={640} height={470}
+            waypoints={[{ lgd: sindhudurg, label: s.hottest_change_district }, { lgd: nagpur.lgd, label: 'Nagpur' }]}
+            selected={nagpur.lgd}
+          />
+          <Legend title={`Unusually hot days · ${tY}`} hachure seed="sk2" range={`${hotRange[0]} to ${hotRange[1]} days across ${ds.length} districts`} />
+          <figcaption class="source label">SOURCE: {tempSource} · METRIC: DAYS WITH TMAX ABOVE THE 1991–2020 90TH PERCENTILE · {tY} · <a href={u("/datasets/temperature")}>DATASET</a></figcaption>
+        </figure>
+      </div>
+    </section>
+
+    <!-- 13 trend charts -->
+    <section class="kit-sec sheet" aria-labelledby="k-trend">
+      <h2 id="k-trend" class="kit-h label">13 · TrendChart</h2>
+      <div class="kit-body trends">
+        <TrendChart
+          caption={`35-district average · unusually hot days · ${s.temp_first_year}–${tY}`}
+          years={hot.years} series={[{ label: '35-district average', values: hot.state_mean!, style: 'faint' }]}
+          rolling={10} baseline={[1991, 2020]} highlight={tY} unit="days" title="Unusually hot days, 35-district average"
+          source={tempSource} href={u(`/atlas?dataset=temperature&metric=days_tmax_above_p90&year=${tY}`)}
+        />
+        <TrendChart
+          caption={`35-district average · monsoon rainfall vs 1971–2020 · ${s.rain_first_year}–${rY}`}
+          years={dep.years} series={[{ label: '35-district average departure', values: dep.state_mean!, style: 'ink' }]}
+          baseline={[1971, 2020]} zeroLine highlight={rY} unit="%" decimals={0} title="Monsoon departure"
+          source={rainSource} href={u(`/atlas?dataset=rainfall&metric=rainfall_jun_sep_departure_pct&year=${rY}`)}
+        />
+        <TrendChart
+          caption={`Compare · unusually hot days · ${compare.map((c) => c.name).join(', ')}`}
+          years={hot.years}
+          series={compare.map((c, i) => ({ label: c.name, values: hot.values[c.lgd] as number[], style: 'ink' as const, dash: dashes[i] || undefined, color: i ? STOPS.warm[4 - i] : undefined }))}
+          baseline={[1991, 2020]} unit="days" title="Compare districts"
+          source={tempSource} href={u(`/atlas?dataset=temperature&metric=days_tmax_above_p90&district=${compare[0].lgd}&compare=${compare.slice(1).map((c) => c.lgd).join(',')}`)}
+        />
+        <ul class="compare-key mono">{compare.map((c, i) => <li><svg width="36" height="8" aria-hidden="true"><line x1="0" y1="4" x2="36" y2="4" stroke={i ? STOPS.warm[4 - i] : 'var(--ink)'} stroke-width="1.5" stroke-dasharray={dashes[i]} /></svg>{c.name}</li>)}</ul>
+      </div>
+    </section>
+
+    <!-- 14 buttons -->
+    <section class="kit-sec sheet" aria-labelledby="k-btn">
+      <h2 id="k-btn" class="kit-h label">14 · Button (default, hover, focus, disabled)</h2>
+      <div class="kit-body buttons">
+        <div><Button href={u("/atlas")} primary>Open the Atlas</Button><p class="label soft">primary</p></div>
+        <div><Button href={u("/datasets")}>Browse the datasets</Button><p class="label soft">default</p></div>
+        <div><Button class="is-hover">Show as table</Button><p class="label soft">hover</p></div>
+        <div><Button class="is-focus" primary>Open the Atlas</Button><p class="label soft">focus</p></div>
+        <div><Button disabled arrow="">Save map as PNG</Button><p class="label soft">disabled</p></div>
+        <div><a href="#k-btn">A text link</a> <a class="ext" href="https://imdpune.gov.in/lrfindex.php">IMD gridded data</a><p class="label soft">links</p></div>
+      </div>
+    </section>
+
+    <!-- 15 inverted ground -->
+    <section class="kit-sec kit-full ground-ink" aria-labelledby="k-inv">
+      <div class="sheet inv-inner">
+        <h2 id="k-inv" class="kit-h label">15 · Inverted ground (home ch. IV)</h2>
+        <div class="kit-body">
+          <p class="display t-xl">Every claim cited. <Highlighter seed="inv">Every dataset open.</Highlighter></p>
+          <p class="measure"><strong>Accuracy.</strong> Every published number traces back to a named primary source and a script anyone can rerun. <a href={u("/standards")}>Read our editorial standards</a></p>
+        </div>
+      </div>
+    </section>
+  </div>
+</Notebook>
+
+<style>
+  .kit { padding-bottom: var(--s-9); }
+  .kit-head { padding-top: var(--s-6); padding-bottom: var(--s-8); align-items: end; }
+  .kit-title { grid-column: 1 / 8; margin-left: -0.04em; }
+  .kit-intro { grid-column: 8 / 13; display: grid; gap: var(--s-4); justify-items: start; padding-bottom: var(--s-4); }
+  .kit-sec { padding-block: var(--s-8); border-top: var(--hair-soft); }
+  .kit-full { padding-inline: 0; }
+  .kit-h { grid-column: 1 / 4; padding-top: 6px; }
+  .kit-body { grid-column: 4 / 13; }
+  .swatches { list-style: none; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: var(--s-4); margin-bottom: var(--s-5); }
+  .swatches li { display: grid; gap: 2px; }
+  .sw { height: 48px; border: var(--hair); margin-bottom: var(--s-1); }
+  .type-spec { display: grid; gap: var(--s-4); }
+  .legends { display: flex; flex-wrap: wrap; gap: var(--s-5); align-items: flex-start; }
+  .ramps { display: grid; gap: var(--s-2); width: 100%; }
+  .ramp { display: grid; grid-template-columns: 90px 1fr; align-items: center; gap: var(--s-3); }
+  .ramp-cells { display: grid; grid-template-columns: repeat(5, 1fr); height: 18px; border: var(--hair); }
+  .stickers { display: flex; flex-wrap: wrap; gap: var(--s-5) var(--s-4); align-items: center; }
+  .hl-demo { max-width: 14ch; margin-bottom: var(--s-6); }
+  .folios { display: grid; gap: var(--s-3); }
+  .kit-notes .kit-body { grid-column: 4 / 9; }
+  .notes-margin { grid-column: 10 / 13; display: grid; gap: var(--s-7); }
+  .target { border-bottom: 1px solid var(--ink); }
+  .panels { display: flex; flex-wrap: wrap; gap: var(--s-6); align-items: flex-start; }
+  .lenses { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--s-7) var(--s-5); }
+  .tagline { position: relative; display: flex; flex-wrap: wrap; gap: var(--s-6) var(--s-5); padding-top: var(--s-7); align-items: flex-start; }
+  .tagline-string { position: absolute; top: 4px; left: -2%; width: 104%; height: 20px; overflow: visible; }
+  .tagline-string path { fill: none; stroke: var(--ink); stroke-width: 1; stroke-dasharray: 5 4; vector-effect: non-scaling-stroke; }
+  .tagline :global(.tag) { width: 260px; }
+  .cards { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--s-5); align-items: start; }
+  .cards :global(.card:nth-child(2)) { margin-top: var(--s-6); margin-left: -14px; }
+  .sketches { display: grid; grid-template-columns: 5fr 7fr; gap: var(--s-6); align-items: start; }
+  .sk-fig { margin: 0; display: grid; gap: var(--s-3); }
+  .sk-fig--wide { position: relative; }
+  .sk-fig--wide :global(.legend) { position: absolute; right: 0; top: 64%; }
+  .trends { display: grid; grid-template-columns: 1fr 1fr; gap: var(--s-7) var(--s-6); }
+  .compare-key { list-style: none; padding: 0; display: grid; gap: var(--s-2); align-content: start; padding-top: var(--s-6); }
+  .compare-key li { display: flex; gap: var(--s-2); align-items: center; }
+  .buttons { display: flex; flex-wrap: wrap; gap: var(--s-5); align-items: flex-start; }
+  .buttons > div { display: grid; gap: var(--s-2); justify-items: start; }
+  .inv-inner { padding-block: var(--s-4); }
+  .ground-ink .kit-h { color: var(--ink-soft); }
+  @media (max-width: 899px) {
+    .kit-title, .kit-intro, .kit-h, .kit-body, .kit-notes .kit-body, .notes-margin { grid-column: 1 / -1; }
+    .kit-h { margin-bottom: var(--s-4); }
+    .lenses, .cards, .sketches, .trends { grid-template-columns: 1fr; }
+    .notes-margin { margin-top: var(--s-5); gap: var(--s-4); }
+    .cards :global(.card:nth-child(2)) { margin: 0; }
+    .tagline { flex-direction: column; align-items: center; }
+    .tagline-string { display: none; }
+    .tagline::before { content: ""; position: absolute; left: 50%; top: 0; bottom: 0; border-left: 1px dashed var(--ink); }
+    .sk-fig--wide :global(.legend) { position: static; justify-self: start; }
+  }
+</style>

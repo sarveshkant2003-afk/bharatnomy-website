@@ -1,0 +1,30 @@
+---
+import { u } from '../lib/url';
+// "The back cover": darker paper, major grid only, cropped wordmark, real stamp.
+import { stats } from '../lib/data';
+import { stampDate } from '../lib/format';
+const s = stats();
+---
+<footer class="back">
+  <div class="back-inner">
+    <p class="back-mark display" aria-hidden="true">BHARATNOMY</p>
+    <div class="back-cols">
+      <nav aria-label="Footer">
+        <div class="back-group">
+          <p class="label soft">Read</p>
+          <ul class="mono"><li><a href={u("/research")}>Research</a></li><li><a href={u("/datasets")}>Datasets</a></li><li><a href={u("/atlas")}>Atlas</a></li></ul>
+        </div>
+        <div class="back-group">
+          <p class="label soft">About us</p>
+          <ul class="mono"><li><a href={u("/about")}>About</a></li><li><a href={u("/standards")}>Standards</a></li><li><a href={u("/careers")}>Careers</a></li></ul>
+        </div>
+      </nav>
+      <div class="back-text">
+        <p><a href="mailto:namaste@bharatnomy.com">namaste@bharatnomy.com</a>. We only write when there is something real to share.</p>
+        <p>Independent, evidence-based research for citizens and market actors.</p>
+        <p class="mono soft">© 2026 Bharatnomy. We maintain no partisan political affiliation.</p>
+        <p class="stamp label"><a href={`${s.data.repo}/tree/${s.data.commit}`} class="stamp-link">DATA @ {s.data.short}</a> · BUILT {stampDate(s.data.built)}</p>
+      </div>
+    </div>
+  </div>
+</footer>

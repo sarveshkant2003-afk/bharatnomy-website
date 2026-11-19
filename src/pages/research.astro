@@ -1,0 +1,49 @@
+---
+// BN-RES: a lab notebook entry with almost nothing in it yet, and honest about it.
+import Notebook from '../layouts/Notebook.astro';
+import IndexCard from '../components/IndexCard.astro';
+import StickerLabel from '../components/StickerLabel.astro';
+import '../styles/pages.css';
+const outputs = [
+  ['Working papers', 'The full technical version, for readers who want the complete method and underlying data.'],
+  ['Reports', 'Longer-form, structured analysis meant to stand on its own without a companion paper.'],
+  ['Policy briefs', 'Short and direct, built for readers who need the conclusion and its practical implication quickly.'],
+];
+const questions = [
+  'Which under-reported macroeconomic indicators give citizens and investors the clearest decision-making signal?',
+  'Can systematic public-data collection compensate for delays or gaps in official reporting?',
+  'What are the localised socio-economic trade-offs of moving away from coal in energy-dependent regional economies?',
+  'How can public datasets better capture real-time climate-adaptation readiness at the district level?',
+];
+---
+<Notebook title="Research" description="Bharatnomy has not published a paper yet. The first working paper, on Heat Action Plans across Maharashtra, is in progress." code="BN-RES">
+  <div class="res sheet">
+    <header class="res-head bleed bleed-clm">
+      <h1 class="display t-mega res-title">Research</h1>
+      <p class="t-lead res-status">We have not published a paper yet. A first working paper is in progress.</p>
+    </header>
+
+    <IndexCard class="res-card" title="Tracking Heat Action Plans across Maharashtra." meta="PRJ-01 · In progress" seed="prj-01" tone="clm" titleTag="h2">
+      <p>Indian districts are increasingly required to hold Heat Action Plans, but having a plan on paper and implementing one on the ground are different facts. We are building a district-by-district record of what is documented versus what is operating.</p>
+      <p><strong>Phase:</strong> architecture, establishing the interdisciplinary method and topic-selection criteria. <strong>Next:</strong> completing selection of the first two to three research topics.</p>
+    </IndexCard>
+    <div class="res-sticker"><StickerLabel text="ARCHITECTURE PHASE" tone="clm" seed="res-phase" /></div>
+
+    <section class="res-contents" aria-labelledby="res-out">
+      <h2 id="res-out" class="label">Contents · output types</h2>
+      <ol class="leaders">
+        {outputs.map(([t, d], i) => (
+          <li><span class="leaders-n mono">{String(i + 1).padStart(2, '0')}</span><span class="leaders-t display">{t}</span><span class="leaders-dots" aria-hidden="true"></span><span class="label soft">pending</span><p class="leaders-d soft">{d}</p></li>
+        ))}
+      </ol>
+    </section>
+
+    <section class="res-q bleed bleed-eqt" aria-labelledby="res-q-h">
+      <h2 id="res-q-h" class="label">Open questions we are pursuing</h2>
+      <ol class="qlist">{questions.map((q) => <li>{q}</li>)}</ol>
+      <p class="soft res-scope">A topic is in scope when it meets a high bar for national significance, has clear use for citizens or market actors, and touches at least two of law, economics, policy and finance.</p>
+    </section>
+
+    <p class="res-notify t-lead">We will write to you when the first paper is out: <a href="mailto:namaste@bharatnomy.com?subject=Notify%20me">namaste@bharatnomy.com</a>.</p>
+  </div>
+</Notebook>

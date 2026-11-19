@@ -1,0 +1,91 @@
+---
+// Chapter III signature move: "the hand-shaded census" (SCROLL.md §6).
+// Every decade frame is pre-rendered here with rough.js (fixed seeds), so no
+// rough.js ships to the browser. src/scripts/home.ts crossfades the frames and
+// draws the pen line from the act's --sc-p.
+import { districtsGeo, stateGeo, decadeFrames, metricFile, stats } from '../../lib/data';
+import { frameFor, sketchDistricts, roughLine } from '../../lib/sketch';
+import { scaleLinear } from 'd3-scale';
+import { classify } from '../../lib/scales';
+import Legend from '../Legend.astro';
+
+interface Props { width?: number; height?: number }
+const { width = 640, height = 470 } = Astro.props;
+const s = stats();
+const fc = districtsGeo();
+const frame = frameFor(stateGeo(), width, height, 10);
+const df = decadeFrames();
+
+// frames: every complete decade, then the partial last one
+const idx = df.decades.map((d, i) => ({ ...d, i })).filter((d, k, all) => d.complete || k === all.length - 1).filter((d) => d.start >= 1960);
+const frames = idx.map((d) => ({
+  label: d.complete ? d.label : `${d.first}–${d.last} · PARTIAL`,
+  first: d.first, last: d.last, i: d.i,
+  values: Object.fromEntries(Object.entries(df.values).map(([k, v]) => [k, v[d.i]])),
+}));
+// hachure range: 5th to 95th percentile across all frames shown
+const all = frames.flatMap((f) => Object.values(f.values) as number[]).filter((v) => v != null).sort((a, b) => a - b);
+const q = (p: number) => all[Math.round((all.length - 1) * p)];
+const range: [number, number] = [q(0.05), q(0.95)];
+
+const outline = sketchDistricts(fc, { frame, roughness: 0.7 });
+const shaded = frames.map((f) => sketchDistricts(fc, { frame, values: f.values as any, range, seedSalt: f.first, roughness: 0.7 }));
+// colour: one warm scale across every decade (5 quantile classes), so change shows as colour
+const cls = classify({ kind: 'warm', breaks: 'quantile', values: all, decimals: 0, unit: 'days' });
+const colors = Object.fromEntries(outline.map((d) => [d.lgd, frames.map((f) => cls.color(f.values[d.lgd] as number) ?? 'none')]));
+const iFirst = frames.findIndex((f) => f.label === s.decade_first);
+const iLast = frames.findIndex((f) => f.label === s.decade_last);
+
+// the pen strip: 35-district average of unusually hot days, every year
+const m = metricFile('temperature', 'days_tmax_above_p90');
+const SW = 1200, SH = 150, pad = { l: 44, r: 16, t: 18, b: 26 };
+const x = scaleLinear().domain([m.years[0], m.years[m.years.length - 1]]).range([pad.l, SW - pad.r]);
+const ymax = Math.max(...(m.state_mean as number[]));
+const y = scaleLinear().domain([0, ymax * 1.08]).range([SH - pad.b, pad.t]).nice(3);
+const pts = m.years.map((yr, i) => [x(yr), y(m.state_mean![i] as number)] as [number, number]);
+const pen = roughLine(pts, 1951, 0.35);
+const decadesTicks = m.years.filter((yr) => yr % 10 === 0);
+const penData = { years: m.years, mean: m.state_mean, x0: pad.l, x1: SW - pad.r, y0: y.domain()[0], y1: y.domain()[1], top: pad.t, bottom: SH - pad.b };
+const frameMeta = frames.map((f) => ({ label: f.label, first: f.first, last: f.last }));
+const tally = Object.fromEntries(outline.map((d) => [d.lgd, { name: d.name, a: frames[iFirst]?.values[d.lgd], b: frames[iLast]?.values[d.lgd] }]));
+---
+<div class="census" data-census data-colors={JSON.stringify(colors)} data-frames={JSON.stringify(frameMeta)} data-pen={JSON.stringify(penData)} data-tally={JSON.stringify(tally)} data-labels={`${s.decade_first}|${s.decade_last}`}>
+  <div class="census-map">
+    <p class="census-decade display" aria-live="off" data-decade></p>
+    <svg class="sketch census-svg" viewBox={`0 0 ${width} ${height}`} role="img" aria-label={`Maharashtra's districts shaded by unusually hot days, decade by decade from ${frames[0].label} to ${frames[frames.length - 1].label}. Darker colour and denser shading mean more hot days.`}>
+      <g class="census-fill">{outline.map((d) => <path data-lgd={d.lgd} d={d.plain} />)}</g>
+      {shaded.map((ds, k) => (
+        <g class="census-frame" data-frame={k}><g id={`cf-${k}`}>{ds.map((d) => d.hatch.length > 0 && <path class="sk-hatch" d={d.hatch.join(' ')} />)}</g></g>
+      ))}
+      <g class="census-outline" id="census-outline">
+        {outline.map((d) => (
+          <g class="sk-d" data-lgd={d.lgd}><path class="sk-hit" d={d.plain} /><path class="sk-line" d={d.outline.join(' ')} /></g>
+        ))}
+      </g>
+    </svg>
+    <div class="census-tally label" data-tally-card hidden></div>
+    <div class="census-ruler">
+      <label class="label" for="census-slider">Decade</label>
+      <input id="census-slider" type="range" min="0" max={frames.length - 1} step="1" value="0" data-slider
+        aria-valuetext={frames[0].label} />
+      <ol class="census-ticks label" aria-hidden="true">{frames.map((f) => <li>{f.label.replace(' · PARTIAL', '')}</li>)}</ol>
+    </div>
+    <Legend class="census-legend" title="Unusually hot days a year · decade average" entries={cls.legend} seed="census" />
+  </div>
+
+  <div class="census-lines"><slot /></div>
+
+  <figure class="census-strip">
+    <svg viewBox={`0 0 ${SW} ${SH}`} preserveAspectRatio="none" role="img" aria-label={`Unusually hot days, 35-district average, ${m.years[0]} to ${m.years[m.years.length - 1]}.`}>
+      <defs><clipPath id="pen-clip"><rect x="0" y="0" width={SW} height={SH} data-pen-clip /></clipPath></defs>
+      <rect class="strip-band" x={x(1991)} y={pad.t} width={x(2020) - x(1991)} height={SH - pad.t - pad.b} />
+      {y.ticks(3).map((t) => <g><line class="trend-grid" x1={pad.l} x2={SW - pad.r} y1={y(t)} y2={y(t)} /><text class="trend-tick" x={pad.l - 8} y={y(t) + 3} text-anchor="end">{t}</text></g>)}
+      <line class="trend-axis" x1={pad.l} x2={SW - pad.r} y1={SH - pad.b} y2={SH - pad.b} />
+      {decadesTicks.map((t) => <g><line class="trend-axis" x1={x(t)} x2={x(t)} y1={SH - pad.b} y2={SH - pad.b + 5} /><text class="trend-tick" x={x(t)} y={SH - 6} text-anchor="middle">{t}</text></g>)}
+      <path class="strip-pen" d={pen} clip-path="url(#pen-clip)" />
+      <g class="strip-nib" data-pen-nib><circle r="4" /><line x1="0" y1="-5" x2="7" y2="-16" /></g>
+    </svg>
+    <figcaption class="label soft">Days a year above the 1991–2020 90th percentile · 35-district average · shaded band = 1991–2020 normal</figcaption>
+  </figure>
+
+</div>

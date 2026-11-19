@@ -1,0 +1,45 @@
+---
+// BN-STD: a numbered rulebook; the one place where numbers carry meaning.
+import Notebook from '../layouts/Notebook.astro';
+import StickerLabel from '../components/StickerLabel.astro';
+import '../styles/pages.css';
+const sections = [
+  { id: 'hard-lines', t: 'Non-negotiables', body: [
+    '<ul class="hardlist"><li>No fabricated data points and no uncited empirical claims, under any circumstance.</li><li>No partisan alignment, political bias, or political sponsorship.</li><li>No compromise on primary-data privacy, anonymity, or participant consent.</li></ul>'] },
+  { id: 'independence', t: 'Independence', body: ['Bharatnomy is not affiliated with any political party, government body, or advocacy organisation. We choose research questions based on what we think matters, not on what serves a particular outcome.'] },
+  { id: 'methodology', t: 'Methodology, shown not just claimed', body: ['Every working paper and report will include a clear account of its data sources and methods, including limitations. If a number is uncertain, we say so, rather than presenting false precision.'] },
+  { id: 'sourcing', t: 'Sourcing', body: ['We rely on primary data wherever possible: government data, original surveys, and direct fieldwork. We cite sources plainly enough that a reader can check our work independently.'] },
+  { id: 'trade-offs', t: 'How we resolve trade-offs', body: [
+    '<ul><li>Depth of verification outranks speed of publishing. Fact-checking never yields to a release deadline.</li><li>Analytical rigour is never diluted for the sake of simplicity. Technical terms get a plain-language definition alongside them instead of being cut.</li><li>Non-partisan public utility outranks commercial monetisation when the two conflict.</li></ul>',
+    '<p class="order"><span class="label">Decision order when priorities conflict</span><span>Empirical accuracy</span><span>Non-partisan neutrality</span><span>Stakeholder utility</span><span>Commercial viability</span></p>'] },
+  { id: 'corrections', t: 'Corrections', body: ['If we get something wrong, we say so publicly with a visible correction note, not a silent edit.'] },
+  { id: 'funding', t: 'Funding transparency', body: ["Details of Bharatnomy's funding and ownership structure will be published here once finalised."], sticker: 'TO BE PUBLISHED' },
+];
+---
+<Notebook title="Editorial standards" description="The standards behind everything Bharatnomy publishes: commitments, not aspirations." code="BN-STD">
+  <div class="rules sheet">
+    <nav class="rules-toc" aria-label="Sections">
+      <p class="label soft">BN-STD · Contents</p>
+      <ol>{sections.map((x, i) => <li><a href={`#${x.id}`} data-toc={x.id}><span class="mono">§{i + 1}</span> {x.t}</a></li>)}</ol>
+    </nav>
+    <div class="rules-main">
+      <header class="rules-head">
+        <h1 class="display t-xl">Editorial standards</h1>
+        <p class="t-lead measure">The standards behind everything we publish. These are commitments, not aspirations. Where a standard is not yet finalised, we say so directly rather than leaving it vague.</p>
+      </header>
+      {sections.map((x, i) => (
+        <section class="clause" id={x.id} aria-labelledby={`${x.id}-h`}>
+          <h2 id={`${x.id}-h`} class="display t-m"><span class="clause-n mono">§{i + 1}</span> {x.t} {x.sticker && <StickerLabel text={x.sticker} seed={x.id} tape />}</h2>
+          {x.body.map((b) => (b.startsWith('<') ? <Fragment set:html={b} /> : <p class="measure">{b}</p>))}
+        </section>
+      ))}
+    </div>
+  </div>
+  <script>
+    const links = document.querySelectorAll<HTMLAnchorElement>('[data-toc]');
+    const io = new IntersectionObserver((es) => {
+      for (const e of es) if (e.isIntersecting) links.forEach((l) => l.toggleAttribute('aria-current', l.dataset.toc === e.target.id));
+    }, { rootMargin: '-30% 0px -60% 0px' });
+    document.querySelectorAll('.clause').forEach((c) => io.observe(c));
+  </script>
+</Notebook>

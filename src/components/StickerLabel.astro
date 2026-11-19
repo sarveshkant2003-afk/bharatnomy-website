@@ -1,0 +1,19 @@
+---
+// Mono uppercase label on a chip, fixed seeded tilt (DESIGN.md §4).
+import { tilt } from '../lib/seed';
+interface Props {
+  text: string;
+  tone?: 'paper' | 'ink' | 'accent' | 'clm' | 'eng' | 'mac' | 'eqt' | 'com';
+  seed?: string;
+  tape?: boolean;
+  dashed?: boolean;
+  max?: number;
+  class?: string;
+}
+const { text, tone = 'paper', seed, tape = false, dashed = false, max = 1, class: cls = '' } = Astro.props;
+const deg = tilt(seed ?? text, max);
+---
+<span class:list={['sticker', `sticker--${tone}`, { 'sticker--dashed': dashed }, cls]} style={`--tilt:${deg}deg`}>
+  {tape && <span class="tape" aria-hidden="true"></span>}
+  {text}
+</span>

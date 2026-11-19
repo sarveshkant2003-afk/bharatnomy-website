@@ -1,0 +1,8 @@
+---
+// Chapter marker in the left margin: "BN-000 · CH. II · FIVE LENSES".
+interface Props { code: string; chapter?: string; title: string; sticky?: boolean; class?: string }
+const { code, chapter, title, sticky = false, class: cls = '' } = Astro.props;
+---
+<p class:list={['folio', 'label', { 'folio--sticky': sticky }, cls]}>
+  <span>{code}</span>{chapter && <><span class="folio-sep" aria-hidden="true">·</span><span>CH. {chapter}</span></>}<span class="folio-sep" aria-hidden="true">·</span><span>{title}</span>
+</p>

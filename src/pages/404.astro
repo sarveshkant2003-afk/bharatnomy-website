@@ -1,0 +1,20 @@
+---
+import { u } from '../lib/url';
+// BN-404: you are off the edge of the map, in the Arabian Sea.
+import Notebook from '../layouts/Notebook.astro';
+import SketchMap from '../components/SketchMap.astro';
+import Button from '../components/Button.astro';
+import '../styles/pages.css';
+---
+<Notebook title="Not found" description="This page is not on our map." code="BN-404" noindex>
+  <div class="nf sheet bleed bleed-eng">
+    <div class="nf-text">
+      <p class="label soft">BN-404</p>
+      <h1 class="display t-xl">This page is not on our map.</h1>
+      <p class="nf-actions"><Button href={u("/")} primary>Back to the notebook</Button> <a href={u("/atlas")}>Open the Atlas</a></p>
+    </div>
+    <figure class="nf-map">
+      <SketchMap title="Maharashtra's districts, with a marker off the coast in the Arabian Sea labelled You are here?" width={620} height={460} extend={[69.6, 16.2, 81.2, 22.2]} waypoints={[{ lon: 70.6, lat: 17.4, label: 'You are here?' }]} seedSalt={404} />
+    </figure>
+  </div>
+</Notebook>

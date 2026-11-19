@@ -1,0 +1,12 @@
+---
+// D3 line chart on graph paper, with its source line. Rendered at build time.
+import { renderTrend, type TrendOpts } from '../lib/trend';
+interface Props extends TrendOpts { source: string; href?: string; caption?: string; class?: string }
+const { source, href, caption, class: cls = '', ...opts } = Astro.props;
+const svg = renderTrend(opts);
+---
+<figure class:list={['trendfig', cls]}>
+  {caption && <p class="label trendfig-cap">{caption}</p>}
+  <div class="trendfig-plot" set:html={svg} />
+  <figcaption class="source label">SOURCE: {source}{href && <> · <a href={href}>OPEN IN ATLAS</a></>}</figcaption>
+</figure>

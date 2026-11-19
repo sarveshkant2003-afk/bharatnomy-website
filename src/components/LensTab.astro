@@ -1,0 +1,19 @@
+---
+// A notebook divider tab in the lens colour; the lens "page" hangs off it.
+import StickerLabel from './StickerLabel.astro';
+interface Props {
+  n: number; lens: 'clm' | 'eng' | 'mac' | 'eqt' | 'com';
+  name: string; line: string; focus: string[]; status: string; class?: string;
+}
+const { n, lens, name, line, focus, status, class: cls = '' } = Astro.props;
+const roman = ['I', 'II', 'III', 'IV', 'V'][n - 1];
+---
+<article class:list={['lens', `lens--${lens}`, cls]} style={`--tab-offset:${(n - 1) * 19}%`}>
+  <div class="lens-tab"><span class="label">{roman}</span><span class="lens-tab-name">{name.split(' ')[0].replace(/&$/, '')}</span></div>
+  <div class="lens-page">
+    <StickerLabel text={status} tone={n === 1 ? lens : 'paper'} seed={`lens-${n}`} class="lens-status" />
+    <h3 class="display t-l lens-name">{name}</h3>
+    <p class="lens-line">{line}</p>
+    <ul class="lens-focus label">{focus.map((f) => <li>{f}</li>)}</ul>
+  </div>
+</article>

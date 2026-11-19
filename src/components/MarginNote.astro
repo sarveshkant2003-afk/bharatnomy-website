@@ -1,0 +1,11 @@
+---
+// A note in the margin, joined to what it annotates by a LeaderLine.
+// `to` is the id of the annotated element. Below 900px the line hides and the
+// note sits inline wherever it is placed in the markup.
+interface Props { to?: string; at?: 'left' | 'right' | 'top' | 'bottom' | 'center'; class?: string; label?: string }
+const { to, at, class: cls = '', label } = Astro.props;
+---
+<aside class:list={['mnote', cls]} data-leader-to={to} data-leader-at={at}>
+  {label && <span class="label mnote-label">{label}</span>}
+  <slot />
+</aside>

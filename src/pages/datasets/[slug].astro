@@ -1,0 +1,141 @@
+---
+import { u } from '../../lib/url';
+// BN-DATA: one lab-report page per dataset, generated from its README at build
+// time, so updating the data repo updates the page.
+import Notebook from '../../layouts/Notebook.astro';
+import InstrumentPanel from '../../components/InstrumentPanel.astro';
+import MarginNote from '../../components/MarginNote.astro';
+import SketchMap from '../../components/SketchMap.astro';
+import TrendChart from '../../components/TrendChart.astro';
+import Legend from '../../components/Legend.astro';
+import Button from '../../components/Button.astro';
+import StickerLabel from '../../components/StickerLabel.astro';
+import { stats, readme, metricFile, yearSlice, districts } from '../../lib/data';
+import { parseReadme, block, inline, tableRows, bullets } from '../../lib/md';
+import { classify } from '../../lib/scales';
+import { stampDate, fmt } from '../../lib/format';
+import { METRICS } from '../../config/metrics.mjs';
+import '../../styles/pages.css';
+
+export function getStaticPaths() {
+  return stats().datasets.map((d) => ({ params: { slug: d.slug } }));
+}
+
+const s = stats();
+const d = s.datasets.find((x) => x.slug === Astro.params.slug)!;
+const r = parseReadme(readme(d.slug));
+const sec = r.sections;
+const source = sec['Source'] ?? '';
+const scriptUrl = source.match(/\*\*Script:\*\*.*?\((https?:[^)]+)\)/)?.[1];
+const downloaded = source.match(/\*\*Downloaded:\*\*\s*(.+)/)?.[1]?.trim();
+const columns = tableRows(sec['Columns'] ?? '');
+const notes = bullets(sec['Notes from the warehouse'] ?? '');
+const meta = METRICS.find((m) => m.id === d.defaultMetric)!;
+const mf = metricFile(d.slug, d.defaultMetric);
+const latest = mf.years[mf.years.length - 1];
+const vals = yearSlice(mf, latest) as Record<string, number>;
+const cls = classify({ kind: meta.scale as any, breaks: meta.breaks, values: Object.values(vals), decimals: meta.decimals, unit: meta.unit, fixed: meta.fixed });
+const colors = Object.fromEntries(Object.entries(vals).map(([k, v]) => [k, cls.color(v)]));
+const vv = Object.values(vals).sort((a, b) => a - b);
+const isTemp = d.slug === 'temperature';
+const baseline: [number, number] = isTemp ? [1991, 2020] : [1971, 2020];
+const srcLine = `${d.source.toUpperCase()}, ${d.first_year}–${d.last_year} · DISTRICT INDICES COMPUTED BY BHARATNOMY`;
+const atlas = u(`/atlas?dataset=${d.slug}&metric=${d.defaultMetric}&year=${latest}`);
+const ds = districts();
+const top = Object.entries(vals).sort((a, b) => b[1] - a[1])[0];
+const topName = ds.find((x) => x.lgd === top[0])?.name;
+---
+<Notebook title={d.title} description={r.intro.split('\n')[0]} code="BN-DATA">
+  <article class="lab sheet">
+    <header class="lab-head">
+      <p class="label soft"><a href={u("/datasets")}>Datasets</a> / {d.code}</p>
+      <h1 class="display t-xl">{d.title}</h1>
+      <p class="label lab-cover">MAHARASHTRA · {d.districts} DISTRICTS · {d.first_year}–{d.last_year} · {d.lens.toUpperCase()}</p>
+    </header>
+
+    <div class="lab-main">
+      <p class="t-lead lab-summary" set:html={inline(r.intro)} />
+
+      <figure class="lab-map">
+        <SketchMap title={`${meta.label}, ${latest}`} values={vals} range={[vv[0], vv[vv.length - 1]]} colors={colors} unit={meta.unit} width={620} height={455} seedSalt={latest} />
+        <Legend title={`${meta.short} · ${latest}${meta.unit && meta.unit !== 'SPI' ? ' · ' + meta.unit.toUpperCase() : ''}`} entries={cls.legend} seed={d.slug} />
+        <figcaption class="source label">SOURCE: {srcLine} · {meta.label.toUpperCase()} · {latest} · <a href={atlas}>OPEN IN ATLAS</a></figcaption>
+      </figure>
+
+      <section class="lab-sec" aria-labelledby="s-what">
+        <h2 id="s-what" class="display t-m">What is in it</h2>
+        <p>One row per district per year: {d.rows.toLocaleString('en-IN')} rows, {d.columns} columns, {d.districts} districts, {d.first_year} to {d.last_year}. In {latest}, the highest {meta.short.toLowerCase()} was in {topName}: {fmt(top[1], meta.decimals)}{meta.unit === '%' ? '%' : ' ' + meta.unit}.</p>
+        <Fragment set:html={block(source)} />
+      </section>
+
+      <section class="lab-sec" aria-labelledby="s-how">
+        <h2 id="s-how" class="display t-m">How it is computed</h2>
+        <Fragment set:html={block(sec['How it is computed'] ?? '')} />
+      </section>
+
+      <section class="lab-sec" aria-labelledby="s-cols">
+        <h2 id="s-cols" class="display t-m">Columns</h2>
+        <div class="table-wrap">
+          <table class="dense">
+            <thead><tr><th scope="col">Column</th><th scope="col">Meaning</th><th scope="col">Unit</th></tr></thead>
+            <tbody>{columns.map((c) => <tr><td><code>{c[0].replace(/`/g, '')}</code></td><td set:html={inline(c[3] ?? '')} /><td class="mono">{c[2] || '–'}</td></tr>)}</tbody>
+          </table>
+        </div>
+      </section>
+
+      <section class="lab-sec" aria-labelledby="s-notes">
+        <h2 id="s-notes" class="display t-m">Notes and caveats</h2>
+        <ul>{notes.map((n) => <li set:html={inline(n)} />)}</ul>
+      </section>
+
+      <section class="lab-sec" aria-labelledby="s-trend">
+        <h2 id="s-trend" class="display t-m">Over time</h2>
+        <TrendChart
+          caption={`35-district average · ${meta.label} · ${d.first_year}–${d.last_year}`}
+          years={mf.years} series={[{ label: '35-district average', values: mf.state_mean as number[], style: 'faint' }]}
+          rolling={10} baseline={baseline} highlight={latest} zeroLine={meta.breaks !== 'quantile'}
+          unit={meta.unit} decimals={meta.decimals} title={`${meta.label}, 35-district average`}
+          width={720} height={250} source={srcLine} href={atlas}
+        />
+        <p class="soft lab-small">The 35-district average is a simple mean of the districts, not weighted by area. The blue line is the 10-year rolling mean; the shaded band is the {baseline[0]} to {baseline[1]} normal.</p>
+      </section>
+
+      <section class="lab-sec" aria-labelledby="s-changes">
+        <h2 id="s-changes" class="display t-m">Changes</h2>
+        <p>This release is built from the data repo at commit <a href={`${s.data.repo}/tree/${s.data.commit}/${d.path}`}><code>{s.data.short}</code></a> ({stampDate(s.data.date)}){downloaded && <>, from IMD files downloaded on {downloaded}</>}. Any change to the data or method will be listed here with its date.</p>
+      </section>
+
+      <section class="lab-sec" aria-labelledby="s-cite">
+        <h2 id="s-cite" class="display t-m">How to cite</h2>
+        <p class="cite mono">Bharatnomy (2026), {d.title}, {d.code}. Data from the India Meteorological Department. Licence: CC BY 4.0. https://bharatnomy.com/datasets/{d.slug}</p>
+      </section>
+    </div>
+
+    <aside class="lab-side">
+      <div class="lab-side-inner">
+        <InstrumentPanel tone="clm" title={`${d.code} · COVERAGE`} rows={[
+          { label: 'Districts', value: String(d.districts), note: '2011 BOUNDARIES' },
+          { label: 'Years', value: `${d.first_year}–${d.last_year}` },
+          { label: 'Rows', value: d.rows.toLocaleString('en-IN') },
+          { label: 'Columns', value: String(d.columns) },
+          { label: 'Licence', value: 'CC BY 4.0' },
+        ]} foot={`DATA @ ${s.data.short}`} />
+        <div class="lab-dl">
+          <Button href={u(`/data/${d.slug}/${d.folder}.csv`)} download primary arrow="↓">CSV · {d.csv_kb} KB</Button>
+          <Button href={u(`/data/${d.slug}/${d.folder}.json`)} download arrow="↓">JSON · {d.json_kb} KB</Button>
+          <Button href={u(`/data/${d.slug}/README.md`)} download arrow="↓">README (.md)</Button>
+          <Button href={atlas}>Open in Atlas</Button>
+        </div>
+        <p class="lab-links mono"><a class="ext" href={d.sourceUrl}>Source: IMD gridded data</a>{scriptUrl && <><br /><a class="ext" href={scriptUrl}>Build script on GitHub</a></>}</p>
+        <div class="lab-notes">
+          <MarginNote label="2011 boundaries">Thane includes today's Palghar. The data uses 2011 boundaries, so we do too.</MarginNote>
+          {isTemp
+            ? <MarginNote label="Grid smoothing">A 1-degree grid cell is about 110 km wide, so it smooths out the hottest afternoons. Heat wave counts are low and best read as a trend.</MarginNote>
+            : <MarginNote label="Pune, 2005">IMD's grid gives Pune an exceptional 2005 (4,342 mm against a 1971 to 2020 average of 1,011 mm). We keep it as IMD published it.</MarginNote>}
+          <MarginNote label="Small districts">Mumbai City and Mumbai Suburban rest on very few grid cells, so their figures describe the surrounding area as much as the district.</MarginNote>
+        </div>
+        <StickerLabel text="CITE AS: BHARATNOMY (2026)" seed={`cite-${d.slug}`} />
+      </div>
+    </aside>
+  </article>
+</Notebook>

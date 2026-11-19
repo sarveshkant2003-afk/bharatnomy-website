@@ -1,0 +1,154 @@
+{
+  "district_count": 35,
+  "temp_first_year": 1951,
+  "temp_last_year": 2024,
+  "temp_year_span": 74,
+  "rain_first_year": 1951,
+  "rain_last_year": 2025,
+  "decade_first": "1960s",
+  "decade_last": "2010s",
+  "p90_days_first": 27,
+  "p90_days_last": 44,
+  "hottest_change_district": "Sindhudurg",
+  "hottest_change_district_lgd": "495",
+  "hottest_change_days": 37,
+  "districts_warmer_last_decade": 32,
+  "monsoon_latest_avg_departure_pct": 19.3,
+  "monsoon_latest_deficient": 1,
+  "monsoon_latest_excess": 16,
+  "state_centroid": [
+    76,
+    19.44
+  ],
+  "data": {
+    "repo": "https://github.com/sarveshkant2003-afk/bharatnomy-front",
+    "commit": "7d9978fd6699bf5b7c83328f57bb257d099ce98a",
+    "short": "7d9978f",
+    "date": "2026-11-18",
+    "built": "2026-11-19"
+  },
+  "states_mapped": [
+    "Maharashtra"
+  ],
+  "india_boundaries": {
+    "states_2011": 35,
+    "commit": "cd7ce2d"
+  },
+  "ticker": [
+    {
+      "lgd": "472",
+      "year": 2024,
+      "text": "BULDHANA · 2024 · HOTTEST DAY 43.9 °C"
+    },
+    {
+      "lgd": "480",
+      "year": 2024,
+      "text": "KOLHAPUR · 2024 · 48 UNUSUALLY HOT DAYS, MOST IN THE STATE"
+    },
+    {
+      "lgd": "483",
+      "year": 2024,
+      "text": "MUMBAI SUBURBAN · 2024 · 186 UNUSUALLY WARM NIGHTS"
+    },
+    {
+      "lgd": "472",
+      "year": 2024,
+      "text": "BULDHANA · 2024 · 51 DAYS AT 40 °C OR MORE"
+    },
+    {
+      "lgd": "494",
+      "year": 2024,
+      "text": "SATARA · 2024 · AVERAGE MAXIMUM +0.55 °C VS 1981–2010"
+    },
+    {
+      "lgd": null,
+      "year": 2025,
+      "text": "35 DISTRICTS · 2025 · MONSOON +19% VS 1971–2020 (DISTRICT AVERAGE)"
+    },
+    {
+      "lgd": null,
+      "year": 2025,
+      "text": "35 DISTRICTS · 2025 · 1 DEFICIENT AND 16 EXCESS MONSOONS"
+    },
+    {
+      "lgd": "491",
+      "year": 2025,
+      "text": "RAIGAD · 2025 · WETTEST DAY 203.2 MM"
+    },
+    {
+      "lgd": "496",
+      "year": 2025,
+      "text": "SOLAPUR · 2025 · LONGEST MONSOON DRY SPELL 17 DAYS"
+    },
+    {
+      "lgd": "491",
+      "year": 2025,
+      "text": "RAIGAD · 2025 · 21 HEAVY RAIN DAYS"
+    },
+    {
+      "lgd": "495",
+      "year": 2025,
+      "text": "SINDHUDURG · 2025 · WETTEST DISTRICT, 4,418 MM IN THE YEAR"
+    }
+  ],
+  "datasets": [
+    {
+      "slug": "temperature",
+      "code": "BN-DATA-CLM-001",
+      "lens": "Climate adaptation & resilience",
+      "folder": "CLM_temperature-indices_1951-to-2024_MH_BNY_DIST",
+      "path": "states/maharashtra/climate-adaptation/CLM_temperature-indices_1951-to-2024_MH_BNY_DIST",
+      "title": "Temperature and heat by district",
+      "defaultMetric": "days_tmax_above_p90",
+      "source": "IMD gridded daily temperature (1° grid)",
+      "sourceUrl": "https://imdpune.gov.in/lrfindex.php",
+      "rows": 2590,
+      "districts": 35,
+      "columns": 22,
+      "first_year": 1951,
+      "last_year": 2024,
+      "csv_kb": 266,
+      "json_kb": 1287,
+      "metrics": [
+        "days_tmax_above_p90",
+        "nights_tmin_above_p90",
+        "tmax_mean_anomaly_c",
+        "tmax_mean_c",
+        "tmin_mean_c",
+        "tmax_mean_mar_may_c",
+        "tmax_highest_c",
+        "days_tmax_40c_or_more",
+        "heatwave_days"
+      ]
+    },
+    {
+      "slug": "rainfall",
+      "code": "BN-DATA-CLM-002",
+      "lens": "Climate adaptation & resilience",
+      "folder": "CLM_rainfall-indices_1951-to-2025_MH_BNY_DIST",
+      "path": "states/maharashtra/climate-adaptation/CLM_rainfall-indices_1951-to-2025_MH_BNY_DIST",
+      "title": "Rainfall and monsoon by district",
+      "defaultMetric": "rainfall_jun_sep_departure_pct",
+      "source": "IMD gridded daily rainfall (0.25° grid)",
+      "sourceUrl": "https://imdpune.gov.in/lrfindex.php",
+      "rows": 2625,
+      "districts": 35,
+      "columns": 27,
+      "first_year": 1951,
+      "last_year": 2025,
+      "csv_kb": 348,
+      "json_kb": 1875,
+      "metrics": [
+        "rainfall_jun_sep_departure_pct",
+        "rainfall_annual_mm",
+        "rainfall_jun_sep_mm",
+        "rainy_days_2_5mm",
+        "heavy_rain_days_64_5mm",
+        "rx1day_mm",
+        "monsoon_longest_dry_spell_days",
+        "spi_jun_sep",
+        "monsoon_category"
+      ]
+    }
+  ]
+}

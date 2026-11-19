@@ -1,0 +1,18 @@
+---
+// An uneven fountain-pen-blue wash behind a phrase (one per heading).
+// Each word gets its own stroke so the mark follows the text across line breaks.
+import { rng } from '../lib/seed';
+interface Props { seed?: string }
+const seed = Astro.props.seed ?? 'hl';
+const html = (await Astro.slots.render('default')).trim();
+const words = /</.test(html) ? [html] : html.split(/\s+/);
+const mark = (k: number) => {
+  const r = rng(`${seed}-${k}`);
+  const top = Array.from({ length: 5 }, (_, i) => [i * 25, 4 + r() * 4]);
+  const bot = Array.from({ length: 5 }, (_, i) => [100 - i * 25, 16 + r() * 3.5]);
+  return 'M' + [...top, ...bot].map(([x, y]) => `${x.toFixed(1)},${y.toFixed(1)}`).join(' L') + ' Z';
+};
+---
+<span class="hl-group">{words.map((w, i) => (
+  <><span class:list={['hl', { 'hl--join': i < words.length - 1 }]}><svg class="hl-mark" viewBox="0 0 100 22" preserveAspectRatio="none" aria-hidden="true"><path d={mark(i)} /></svg><span class="hl-text" set:html={w} /></span>{i < words.length - 1 ? ' ' : ''}</>
+))}</span>

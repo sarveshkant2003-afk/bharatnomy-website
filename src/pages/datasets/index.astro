@@ -1,0 +1,92 @@
+---
+import { u } from '../../lib/url';
+// BN-DATA: the specimen drawer, then the plain table researchers want.
+import Notebook from '../../layouts/Notebook.astro';
+import StickerLabel from '../../components/StickerLabel.astro';
+import SpecimenTag from '../../components/SpecimenTag.astro';
+import InstrumentPanel from '../../components/InstrumentPanel.astro';
+import MarginNote from '../../components/MarginNote.astro';
+import { stats } from '../../lib/data';
+import { stampDate } from '../../lib/format';
+import '../../styles/pages.css';
+
+const s = stats();
+const planned = [
+  { title: 'Original survey data', note: 'Collected directly, for questions where existing data does not go deep enough.' },
+  { title: 'Cleaned government data', note: 'Numbers that already exist, made usable: the unglamorous work of normalising formats across sources.' },
+  { title: 'Proprietary indices', note: 'Composite measures we build ourselves, when no existing metric captures what we think matters.' },
+];
+---
+<Notebook title="Datasets" description="Cleaned, documented and free district-level datasets on India, starting with temperature and rainfall for Maharashtra." code="BN-DATA">
+  <div class="dsx">
+    <header class="sheet dsx-head bleed bleed-clm">
+      <h1 class="display t-xl dsx-title">Datasets</h1>
+      <div class="dsx-intro">
+        <StickerLabel text={`${s.datasets.length} LIVE · ${planned.length} PLANNED`} tone="ink" seed="dsx" />
+        <p class="t-lead">Cleaned, documented and free. Every file carries its source, its method and the date we collected it.</p>
+        <p class="soft">Reliable research depends on reliable data, and reliable data on India is often the harder half of the work: scattered across sources, inconsistently defined, or simply hard to find.</p>
+      </div>
+    </header>
+
+    <section class="sheet dsx-drawer" aria-label="Datasets, live and planned">
+      <svg class="dsx-string" viewBox="0 0 1000 24" preserveAspectRatio="none" aria-hidden="true"><path d="M0,6 C220,20 780,20 1000,6" /></svg>
+      <div class="dsx-tags">
+        {s.datasets.map((d) => <SpecimenTag dataset={d} headingTag="h2" />)}
+        {planned.map((p) => <SpecimenTag planned={p.title} note={p.note} headingTag="h2" />)}
+      </div>
+    </section>
+
+    <section class="sheet dsx-table-sec" aria-labelledby="dsx-table-h">
+      <div class="dsx-table-head">
+        <h2 id="dsx-table-h" class="display t-m">All datasets, as a table</h2>
+        <p class="soft">CSV and JSON. Source and collection-date metadata in every release. Licence: CC BY 4.0. Cite as: Bharatnomy (2026), [dataset name].</p>
+      </div>
+      <div class="table-wrap">
+        <table class="dense" data-sortable>
+          <thead>
+            <tr>
+              <th scope="col"><button data-sort="text">Dataset</button></th>
+              <th scope="col"><button data-sort="text">Lens</button></th>
+              <th scope="col"><button data-sort="text">Geography</button></th>
+              <th scope="col"><button data-sort="num">Years</button></th>
+              <th scope="col" class="r"><button data-sort="num">Rows</button></th>
+              <th scope="col"><button data-sort="text">Updated</button></th>
+              <th scope="col">Formats</th>
+            </tr>
+          </thead>
+          <tbody>
+            {s.datasets.map((d) => (
+              <tr>
+                <td><a href={u(`/datasets/${d.slug}`)}>{d.title}</a><span class="mono soft dense-code">{d.code}</span></td>
+                <td>{d.lens}</td>
+                <td>Maharashtra · {d.districts} districts</td>
+                <td data-value={d.first_year} class="num">{d.first_year}–{d.last_year}</td>
+                <td class="num r" data-value={d.rows}>{d.rows.toLocaleString('en-IN')}</td>
+                <td class="num">{stampDate(s.data.date)}</td>
+                <td><a href={u(`/data/${d.slug}/${d.folder}.csv`)} download>CSV</a> · <a href={u(`/data/${d.slug}/${d.folder}.json`)} download>JSON</a></td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="sheet dsx-standard bleed bleed-mac" aria-labelledby="dsx-std-h">
+      <h2 id="dsx-std-h" class="visually-hidden">Data standard</h2>
+      <InstrumentPanel class="dsx-panel" title="DATA STANDARD" rows={[
+        { label: 'Verification', value: 'Sources named' },
+        { label: 'Scraping', value: 'Public domain only' },
+        { label: 'Formats', value: 'CSV · JSON' },
+        { label: 'Licence', value: 'CC BY 4.0' },
+      ]} foot={`DATA @ ${s.data.short} · ${stampDate(s.data.date)}`} />
+      <div class="dsx-std-text">
+        <p><strong>Verification.</strong> Government data is used with source attribution; every other secondary data point requires two independent sources before use.</p>
+        <p><strong>Scraping boundary.</strong> Public-domain datasets only, collected within each source's rate limits.</p>
+        <p><strong>Distribution format.</strong> Open formats, CSV and JSON, with source and collection-date metadata attached to every file.</p>
+      </div>
+      <MarginNote class="dsx-note" label="A note on official data">Official Indian datasets are frequently inconsistent with one another, and reporting delays are common. Part of our data work is building around that reality rather than assuming it away.</MarginNote>
+      <p class="dsx-ask">If a specific dataset should exist and does not, tell us: <a href="mailto:namaste@bharatnomy.com?subject=Dataset%20request">namaste@bharatnomy.com</a>. That is genuinely useful input for what we build first.</p>
+    </section>
+  </div>
+  <script>import '../../scripts/sort-table';</script>
+</Notebook>

@@ -1,0 +1,76 @@
+---
+// BN-ABT: a two-page spread, then a small rough.js diagram.
+import Notebook from '../layouts/Notebook.astro';
+import IndexCard from '../components/IndexCard.astro';
+import MarginNote from '../components/MarginNote.astro';
+import { districtsGeo } from '../lib/data';
+import { frameFor, sketchDistricts, roughCircle } from '../lib/sketch';
+import '../styles/pages.css';
+
+// "How we work": five lens circles around one district outline (Nagpur)
+const W = 640, H = 420;
+const fc = districtsGeo();
+const nagpur = { type: 'FeatureCollection', features: (fc.features as any[]).filter((f) => f.properties.name === 'Nagpur') } as any;
+const frame = frameFor(nagpur, 230, 190, 6);
+const shape = sketchDistricts(nagpur, { frame, roughness: 0.8 })[0];
+const lenses = [
+  ['Climate', 'var(--lens-clm)'], ['Energy', 'var(--lens-eng)'], ['Macro', 'var(--lens-mac)'], ['Equity', 'var(--lens-eqt)'], ['Commodities', 'var(--lens-com)'],
+];
+const cx = W / 2, cy = H / 2, R = 165;
+const pos = lenses.map((_, i) => { const a = -Math.PI / 2 + (i * 2 * Math.PI) / 5; return [cx + R * Math.cos(a), cy + R * 0.82 * Math.sin(a)]; });
+---
+<Notebook title="About" description="Bharatnomy is an independent research firm studying India's economy as one system, combining economics, finance, law and policy." code="BN-ABT">
+  <div class="spread sheet">
+    <section class="spread-left" aria-labelledby="ab-h">
+      <h1 id="ab-h" class="display t-xl">About</h1>
+      <p class="t-l display spread-lead">An independent research firm studying India's economy as one system.</p>
+      <p class="t-lead measure">Climate, energy, capital markets and public policy interact continuously. Bharatnomy studies them that way, rather than in separate silos.</p>
+      <h2 class="label">Why we started</h2>
+      <p class="measure">Most research on India's economy is built to serve one audience: other specialists. We are building ours for a wider one: investors, civil servants, journalists, and anyone who wants to understand how the country actually works, not just what happened this week.</p>
+      <h2 class="label">How we think</h2>
+      <p class="measure" id="ab-heat">A heatwave is simultaneously a climate story, an energy story, an agriculture story, and a fiscal story. Research that addresses only one of those threads produces an incomplete answer. Our method puts law, economics, policy and finance in the same room on the same question, from the start of a project rather than as an afterthought.</p>
+      <p class="measure">We are independent, and we intend to stay that way. That shows up in what we choose to study, who funds it, and how plainly we are willing to write it.</p>
+      <MarginNote to="ab-heat" class="spread-note" label="Why five lenses?">Because a heat wave is also an electricity bill and a food price.</MarginNote>
+    </section>
+
+    <section class="spread-right" aria-labelledby="ab-team">
+      <h2 id="ab-team" class="label">The team</h2>
+      <div class="team">
+        <IndexCard title="Srikar" meta="Partner & CEO" seed="srikar" tone="clm">
+          <p>Trained originally in the natural sciences, with a master's degree in medical nanotechnology, before moving into policy research. Studied public policy at the University of Chicago and has since focused on qualitative, field-based research.</p>
+        </IndexCard>
+        <IndexCard title="Kartik" meta="Partner" seed="kartik-b" tone="mac">
+          <p>Policy and social-impact professional who runs his own think-and-do tank. Previously worked with the World Bank in Washington, D.C. and with the Government of Maharashtra, and studied public policy at the University of Chicago.</p>
+        </IndexCard>
+        <IndexCard title="Sanchit" meta="Partner" seed="sanchit" tone="eqt">
+          <p>Background in finance and wealth management, bringing a practitioner's view of capital markets and how policy decisions move money in practice, not only on paper.</p>
+        </IndexCard>
+      </div>
+      <p class="soft spread-young">Bharatnomy is a young firm. We think that is worth stating plainly, not hiding.</p>
+    </section>
+  </div>
+
+  <section class="howwe sheet bleed bleed-eqt" aria-labelledby="ab-how">
+    <div class="howwe-text">
+      <h2 id="ab-how" class="display t-l">Where we start, and what we check</h2>
+      <p><strong>What we bring.</strong> Multidisciplinary synthesis across law, economics, policy and finance, and a habit of grounding technical findings in India's social and cultural realities rather than treating them as abstractions.</p>
+      <p><strong>What we check independently.</strong> Commercial market mechanics and dashboard or product design sit outside our founding expertise. Both get independent review before anything reaches a reader.</p>
+    </div>
+    <figure class="howwe-fig">
+      <svg viewBox={`0 0 ${W} ${H}`} role="img" aria-label="Diagram: five lenses, climate, energy, macro, equity and commodities, all connected to one district.">
+        {pos.map(([x, y], i) => pos.slice(i + 1).map(([x2, y2]) => <line x1={x} y1={y} x2={x2} y2={y2} class="howwe-link" />))}
+        {pos.map(([x, y]) => <line x1={x} y1={y} x2={cx} y2={cy} class="howwe-spoke" />)}
+        <g transform={`translate(${cx - 115} ${cy - 95})`}><path d={shape.outline.join(' ')} class="howwe-district" /></g>
+        <text x={cx} y={cy + 4} text-anchor="middle" class="howwe-dlabel">ONE DISTRICT</text>
+        {pos.map(([x, y], i) => (
+          <g>
+            <circle cx={x} cy={y} r="34" style={`fill:${lenses[i][1]}`} class="howwe-fill" />
+            <path d={roughCircle(x, y, 68, 300 + i)} class="howwe-ring" />
+            <text x={x} y={y + 4} text-anchor="middle" class="howwe-label">{lenses[i][0].toUpperCase()}</text>
+          </g>
+        ))}
+      </svg>
+      <figcaption class="label soft">Five lenses on one district. Outline: Nagpur, Census 2011 boundary.</figcaption>
+    </figure>
+  </section>
+</Notebook>

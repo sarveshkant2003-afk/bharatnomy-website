@@ -1,0 +1,212 @@
+---
+import { u } from '../lib/url';
+// Home (BN-000): chaptered editorial, built on the ScrollCraft engine (SCROLL.md).
+// Copy: bharatnomy.com (live site wins on facts) and CONTENT.md, em dashes removed.
+// Every number comes from public/data/stats.json, written by `npm run data`.
+import Notebook from '../layouts/Notebook.astro';
+import StickerLabel from '../components/StickerLabel.astro';
+import Highlighter from '../components/Highlighter.astro';
+import MarginNote from '../components/MarginNote.astro';
+import InstrumentPanel from '../components/InstrumentPanel.astro';
+import Ticker from '../components/Ticker.astro';
+import LensTab from '../components/LensTab.astro';
+import SpecimenTag from '../components/SpecimenTag.astro';
+import Button from '../components/Button.astro';
+import IndiaSketch from '../components/home/IndiaSketch.astro';
+import Census from '../components/home/Census.astro';
+import { stats, decadeFrames } from '../lib/data';
+import { coords, stampDate } from '../lib/format';
+import '../styles/home.css';
+
+const s = stats();
+const temp = s.datasets.find((d) => d.slug === 'temperature')!;
+const rain = s.datasets.find((d) => d.slug === 'rainfall')!;
+
+// Chapter III timing: must match the frame list in Census.astro and P0/P1 in home.ts
+const df = decadeFrames();
+const fr = df.decades.filter((d, k, all) => (d.complete || k === all.length - 1) && d.start >= 1960);
+const n = fr.length, P0 = 0.12, P1 = 0.9;
+const at = (k: number) => +(P0 + (k / n) * (P1 - P0) + 0.01).toFixed(3);
+const kLast = fr.findIndex((d) => d.label === s.decade_last);
+// "The darkest district on this map": true only if it is darkest on the final frame
+const lastI = df.decades.indexOf(fr[n - 1]);
+const darkest = Object.entries(df.values).sort((a, b) => (b[1][lastI] ?? -1) - (a[1][lastI] ?? -1))[0][0];
+const darkestIsChange = darkest === s.hottest_change_district_lgd;
+const span = s.temp_year_span;
+---
+<Notebook
+  title="Bharatnomy"
+  description="Bharatnomy is an independent research firm studying India's economy layer by layer, state by state, traced to primary data."
+  code="BN-000"
+  coords={coords(s.state_centroid[0], s.state_centroid[1])}
+  coordsLabel="STATE 01 · MAHARASHTRA"
+  bodyClass="home"
+>
+  <link slot="head" rel="stylesheet" href={u("/scrollcraft/scrollcraft.css")} />
+
+  <p class="home-folio label" data-folio aria-hidden="true">BN-000 · TITLE PAGE</p>
+
+  <!-- ============================================================ TITLE PAGE -->
+  <section class="ch ch-title" data-chapter="TITLE PAGE" aria-labelledby="h-title">
+    <div class="sheet title-sheet">
+      <div class="title-sticker"><StickerLabel text="FIELD NOTEBOOK · VOL. 01 · INDIA" tone="ink" seed="vol-01" /></div>
+      <h1 id="h-title" class="display title-h1">
+        <span class="ln">India's economy,</span>
+        <span class="ln">read as <Highlighter seed="home-h1">one connected system.</Highlighter></span>
+      </h1>
+      <div class="title-sub">
+        <p class="t-lead">Bharatnomy is an independent research firm studying India's economy layer by layer, because they move together.</p>
+        <p class="soft">We combine economics, finance, law, and policy into a single research method. Every claim we publish will carry a citation, and every dataset will be open.</p>
+        <p class="title-actions">
+          <Button href={u("/atlas")} primary>Open the Atlas</Button>
+          <a href={u("/datasets")}>Browse the datasets</a>
+        </p>
+      </div>
+      <InstrumentPanel
+        class="title-panel"
+        tone="clm"
+        title={`COVERAGE · ${stampDate(s.data.built)}`}
+        rows={[
+          { label: 'States mapped', value: String(s.states_mapped.length), note: s.states_mapped.join(', ').toUpperCase() },
+          { label: 'Districts', value: String(s.district_count), note: '2011 BOUNDARIES' },
+          { label: 'Daily temperature', value: `${s.temp_first_year}–${s.temp_last_year}` },
+          { label: 'Daily rainfall', value: `${s.rain_first_year}–${s.rain_last_year}` },
+        ]}
+        foot={`DATA @ ${s.data.short} · IMD GRIDDED RECORDS`}
+      />
+    </div>
+    <Ticker facts={s.ticker.map((t) => t.text)} label="Latest readings from our data" />
+  </section>
+
+  <!-- ======================================================= CH. I · INDIA -->
+  <section class="ch ch-one ch-tint" data-sc-act="flow" data-chapter="CH. I · STATE BY STATE" aria-labelledby="h-one">
+    <div class="sheet one-sheet">
+      <div class="one-text">
+        <p class="label one-eyebrow">India, state by state</p>
+        <h2 id="h-one" class="display t-xl">We start with one state.</h2>
+        <p class="t-lead measure">Before we say anything about India, we map one state properly. Maharashtra first, district by district, from the government's own daily records. Then the next state, with the same method.</p>
+        <p class="soft measure">Numbers rarely mean much in isolation. We are building one profile per Indian state, covering climate resilience, energy, macroeconomic health and market activity, designed to be explored rather than only read. Profiles roll out as they clear our data-verification standard, rather than all at once.</p>
+        <div class="one-notes">
+          <MarginNote to="sk-mh" label="Maharashtra">{s.district_count} districts, drawn on their 2011 boundaries.</MarginNote>
+          <MarginNote to="sk-mh-pt">Daily temperature since {s.temp_first_year}, daily rainfall since {s.rain_first_year}, from IMD's gridded records.</MarginNote>
+          <MarginNote to="sk-thane-pt">Thane includes today's Palghar. The data uses 2011 boundaries, so we do too.</MarginNote>
+        </div>
+      </div>
+      <figure class="one-map" data-sc-reveal="up" data-sc-reveal-at="0.04 0.3">
+        <IndiaSketch />
+        <div class="one-keys">
+          <StickerLabel text={`STATE 01 · ${s.states_mapped[0].toUpperCase()} · ${s.district_count} DISTRICTS`} tone="clm" seed="state-01" />
+          <p class="label soft">Inked = mapped · Outline = not yet mapped</p>
+        </div>
+        <figcaption class="source label">STATE OUTLINES: CENSUS 2011 DISTRICT MAP (DATAMEET), AS OF 2011 · <a href={u("/datasets")}>DATASETS</a></figcaption>
+      </figure>
+    </div>
+  </section>
+
+  <!-- ================================================== CH. II · FIVE LENSES -->
+  <section class="ch ch-two" data-sc-act="pan" data-sc-span="4.6" data-chapter="CH. II · FIVE LENSES" aria-labelledby="h-two">
+    <div class="sc-stage lens-stage" data-sc-stage>
+      <div class="lens-rail" data-sc-pan="0.04">
+        <div class="rail-item rail-head">
+          <h2 id="h-two" class="display t-xl">Five lenses on one economy.</h2>
+          <p class="t-lead">Where we are putting research attention. We treat these five areas as connected, not separate.</p>
+          <p class="soft">The same district looks different through each lens. We read all five, and the links between them.</p>
+        </div>
+        <LensTab class="rail-item" n={1} lens="clm" name="Climate adaptation & resilience" line="How India's institutions are, and are not, preparing for a hotter, less predictable future." focus={['Institutional readiness', 'Climate risk', 'Resilience infrastructure']} status="FIRST DATA PUBLISHED" />
+        <LensTab class="rail-item" n={2} lens="eng" name="Energy policy & markets" line="The economics behind India's coal-to-renewables transition, not just the headlines." focus={['Transition economics', 'Policy design', 'Market signals']} status="IN PREPARATION" />
+        <LensTab class="rail-item" n={3} lens="mac" name="Macroeconomic health" line="National growth, inflation, and fiscal capacity, read plainly and traced to primary data." focus={['Growth', 'Inflation', 'Fiscal capacity']} status="IN PREPARATION" />
+        <LensTab class="rail-item" n={4} lens="eqt" name="Equity markets" line="What is actually moving Indian capital markets, and why, separated from market narrative." focus={['Capital markets', 'Market drivers', 'Investor behaviour']} status="IN PREPARATION" />
+        <LensTab class="rail-item" n={5} lens="com" name="Commodity markets" line="The real-economy forces behind commodity prices, not the headline number alone." focus={['Price formation', 'Supply dynamics', 'The real economy']} status="IN PREPARATION" />
+        <div class="rail-item rail-note">
+          <p class="display t-l">A heatwave is simultaneously a climate story, an energy story, an agriculture story, and a fiscal story.</p>
+          <p class="soft">Research that addresses only one of those threads produces an incomplete answer. Our method puts law, economics, policy and finance in the same room on the same question, from the start.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================================ CH. III · THE PEAK (pinned) -->
+  <section class="ch ch-three" data-sc-act="pin" data-sc-span="6" data-chapter={`CH. III · ${span} SUMMERS`} aria-labelledby="h-three">
+    <div class="sc-stage census-stage" data-sc-stage>
+      <div class="census-wrap">
+        <h2 id="h-three" class="display t-l census-title">{span} summers, shaded by hand.</h2>
+        <Census>
+          <p class="census-line" data-sc-cue={`${at(0)} 1 0.03 0.005`}>In the {s.decade_first}, the average district had <strong><span class="cnt" data-sc-count={`0 ${s.p90_days_first}`} data-sc-count-at={`${at(0)} ${at(0) + 0.06}`}>{s.p90_days_first}</span><span class="cnt-static">{s.p90_days_first}</span> days</strong> a year hotter than its own 1991 to 2020 normal for that time of year.</p>
+          <p class="census-line" data-sc-cue={`${at(kLast)} 1 0.03 0.005`}>By the {s.decade_last}, it had <strong><span class="cnt" data-sc-count={`0 ${s.p90_days_last}`} data-sc-count-at={`${at(kLast)} ${at(kLast) + 0.06}`}>{s.p90_days_last}</span><span class="cnt-static">{s.p90_days_last}</span></strong>.</p>
+          {darkestIsChange
+            ? <p class="census-line" data-sc-cue={`${at(n - 1)} 1 0.03 0.005`}>The darkest district on this map, {s.hottest_change_district}, gained <strong><span class="cnt" data-sc-count={`0 ${s.hottest_change_days}`} data-sc-count-at={`${at(n - 1)} ${at(n - 1) + 0.06}`}>{s.hottest_change_days}</span><span class="cnt-static">{s.hottest_change_days}</span></strong> such days a year.</p>
+            : <p class="census-line" data-sc-cue={`${at(n - 1)} 1 0.03 0.005`}>The biggest gain was in {s.hottest_change_district}: <strong>{s.hottest_change_days}</strong> more such days a year.</p>}
+          <p class="census-close" data-sc-cue="0.9 1 0.03 0.005">Every line of shading is a number you can download.</p>
+          <aside class="mnote census-aside"><span class="label mnote-label">Why this measure</span>Why this measure and not "heat wave days"? A 1-degree grid cell is about 110 km wide, so it smooths out the hottest afternoons. Counting days above each district's own 90th percentile does not depend on absolute thresholds, so it is the fairer way to compare change over time.</aside>
+          <p class="source label census-source">SOURCE: IMD GRIDDED DAILY TEMPERATURE (1° GRID), {s.temp_first_year}–{s.temp_last_year} · DISTRICT INDICES COMPUTED BY BHARATNOMY · METRIC: DAYS WITH TMAX ABOVE THE 1991–2020 90TH PERCENTILE · <a href={u("/datasets/temperature")}>DATASET</a> · <a href={u(`/atlas?dataset=temperature&metric=days_tmax_above_p90&view=decade`)}>OPEN IN ATLAS</a></p>
+        </Census>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===================================================== CH. IV · STANDARDS -->
+  <section class="ch ch-four ground-ink" data-chapter="CH. IV · STANDARDS" aria-labelledby="h-four">
+    <div class="sheet four-sheet">
+      <h2 id="h-four" class="display t-xl four-title" data-sc-in>Every claim cited. <Highlighter seed="std">Every dataset open.</Highlighter></h2>
+      <div class="four-why" data-sc-in data-sc-stagger="60">
+        <p class="label soft">Why now</p>
+        <p class="t-lead">Democratic backsliding and social-media-driven misinformation are weakening the evidence base behind public decisions.</p>
+        <p>At the same time, most existing research on India's economy defaults toward partisan framing or sits behind institutional paywalls. Not because researchers set out to be partisan or exclusive, but because that is the path of least resistance.</p>
+        <p>Bharatnomy is built against that default. We are independent by design, and we are writing for people outside the room where policy gets written.</p>
+      </div>
+      <div class="four-lines" data-sc-in data-sc-stagger="60">
+        <p class="label soft">Hard lines</p>
+        <ol class="hard">
+          <li><span class="hard-n mono">01</span><p><strong>No fabricated data.</strong> No fabricated data points and no uncited empirical claims, under any circumstance.</p></li>
+          <li><span class="hard-n mono">02</span><p><strong>No partisanship.</strong> No partisan alignment, political bias, or political sponsorship.</p></li>
+          <li><span class="hard-n mono">03</span><p><strong>No compromise on consent.</strong> No compromise on primary-data privacy, anonymity, or participant consent.</p></li>
+          <li><span class="hard-n mono">04</span><p><strong>Corrections in the open.</strong> If we get something wrong, we say so publicly with a visible correction note, not a silent edit.</p></li>
+        </ol>
+        <p><a href={u("/standards")}>Read our editorial standards →</a></p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===================================================== CH. V · DATASETS -->
+  <section class="ch ch-five ch-tint" data-chapter="CH. V · OPEN THE NOTEBOOK" aria-labelledby="h-five">
+    <div class="sheet five-sheet">
+      <div class="five-head">
+        <h2 id="h-five" class="display t-xl">Take the data with you.</h2>
+        <p class="t-lead measure">Our first two datasets are live: district-level temperature and rainfall for Maharashtra, every year since {Math.min(temp.first_year, rain.first_year)}. CSV and JSON, with sources and methods attached.</p>
+      </div>
+      <dl class="five-who">
+        <div><dt class="label">Civic actors & citizens</dt><dd>Transparent, evidence-based data and systems-level analysis that connects issues most coverage treats in isolation.</dd></div>
+        <div><dt class="label">Market & institutional actors</dt><dd>Rigorous, non-partisan primary datasets and macro-level risk assessments, not just headline indicators.</dd></div>
+      </dl>
+      <div class="five-tags" data-sc-reveal="up" data-sc-reveal-at="0.12 0.42">
+        <svg class="five-string" viewBox="0 0 1000 20" preserveAspectRatio="none" aria-hidden="true"><path d="M0,5 C250,15 750,15 1000,5" /></svg>
+        <SpecimenTag dataset={temp} />
+        <SpecimenTag dataset={rain} />
+        <SpecimenTag planned="Original survey data" />
+        <SpecimenTag planned="Cleaned government data" />
+        <SpecimenTag planned="Proprietary indices" />
+      </div>
+      <aside class="mnote five-note"><span class="label mnote-label">Data standard</span>Open formats, CSV and JSON, with source and collection-date metadata attached to every file. Government data is used with source attribution.</aside>
+      <p class="five-more"><a href={u("/datasets")}>All datasets →</a></p>
+    </div>
+  </section>
+
+  <!-- ============================================================= COLOPHON -->
+  <section class="ch ch-colophon ch-tint" data-chapter="COLOPHON" aria-labelledby="h-colophon">
+    <div class="sheet colophon-sheet">
+      <h2 id="h-colophon" class="visually-hidden">Colophon</h2>
+      <p class="display t-l colophon-line">Bharatnomy is young, independent and building in the open. Write to us at <a href="mailto:namaste@bharatnomy.com">namaste@bharatnomy.com</a>.</p>
+      <p class="colophon-sub">We are building our first body of work in public, and we will email when research, datasets or dashboards go live, only when there is something real to share. Until then, <a href={u("/atlas")}>open the Atlas</a>.</p>
+      <div class="colophon-small mono soft">
+        <p>Srikar, Partner &amp; CEO · Kartik, Partner · Sanchit, Partner</p>
+        <p>Set in Big Shoulders Display and Geist. Maps drawn from Census 2011 district boundaries (DataMeet). Data: India Meteorological Department.</p>
+      </div>
+    </div>
+  </section>
+
+  <Fragment slot="end">
+    <script is:inline src={u("/scrollcraft/scrollcraft.js")}></script>
+    <script is:inline>ScrollCraft.mount(document.body);</script>
+    <script>import '../scripts/home';</script>
+  </Fragment>
+</Notebook>

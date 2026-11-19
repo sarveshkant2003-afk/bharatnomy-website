@@ -1,0 +1,17 @@
+---
+// One line of mono facts scrolling between hairlines. Facts come from stats.json.
+// Pauses on hover and focus; a static wrapped list under reduced motion.
+interface Props { facts: string[]; label?: string; speed?: number }
+const { facts, label = 'Latest readings', speed = 90 } = Astro.props;
+const dur = Math.round(facts.join('   ').length / 120 * speed);
+---
+<section class="ticker" aria-label={label} tabindex="0" style={`--ticker-dur:${dur}s`}>
+  <div class="ticker-track">
+    <ul class="ticker-list label">
+      {facts.map((f) => <li>{f}</li>)}
+    </ul>
+    <ul class="ticker-list label ticker-dup" aria-hidden="true">
+      {facts.map((f) => <li>{f}</li>)}
+    </ul>
+  </div>
+</section>
