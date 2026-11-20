@@ -17,15 +17,11 @@ body {
   caret-color: var(--accent);
   font-variant-numeric: tabular-nums;
   overflow-x: hidden;
-  /* graph paper: hard-stop hairlines, 8px minor, 40px major (not a gradient fill) */
+  /* paper pattern: see paper.css (dot grid by default) */
   background-color: var(--paper);
-  background-image:
-    linear-gradient(var(--grid-major) 1px, transparent 1px),
-    linear-gradient(90deg, var(--grid-major) 1px, transparent 1px),
-    linear-gradient(var(--grid-minor) 1px, transparent 1px),
-    linear-gradient(90deg, var(--grid-minor) 1px, transparent 1px);
-  background-size: var(--grid) var(--grid), var(--grid) var(--grid), 8px 8px, 8px 8px;
-  background-position: -1px -1px;
+  background-image: var(--paper-img);
+  background-size: var(--paper-size);
+  background-position: var(--paper-pos);
 }
 
 /* paper grain: fixed noise, behind everything, does not move on scroll */

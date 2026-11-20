@@ -10,13 +10,9 @@
 /* the engine's stylesheet also styles body; restate our paper with more weight */
 body.home {
   background-color: var(--paper);
-  background-image:
-    linear-gradient(var(--grid-major) 1px, transparent 1px),
-    linear-gradient(90deg, var(--grid-major) 1px, transparent 1px),
-    linear-gradient(var(--grid-minor) 1px, transparent 1px),
-    linear-gradient(90deg, var(--grid-minor) 1px, transparent 1px);
-  background-size: var(--grid) var(--grid), var(--grid) var(--grid), 8px 8px, 8px 8px;
-  background-position: -1px -1px;
+  background-image: var(--paper-img);
+  background-size: var(--paper-size);
+  background-position: var(--paper-pos);
   color: var(--ink);
   font-size: var(--t-body);
   letter-spacing: 0;
@@ -27,13 +23,12 @@ body.home .btn { color: var(--ink); }
 body.home .btn--primary { color: var(--paper); }
 
 .ch { position: relative; }
-/* colour pass: chapters sit on lens-tinted paper, grid still showing */
+/* colour pass: chapters sit on lens-tinted paper, paper pattern still showing */
 .ch-tint {
   background-color: var(--ch-tint);
-  background-image:
-    linear-gradient(rgba(22, 24, 28, 0.045) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(22, 24, 28, 0.045) 1px, transparent 1px);
-  background-size: var(--grid) var(--grid);
+  background-image: var(--paper-img);
+  background-size: var(--paper-size);
+  background-position: var(--paper-pos);
   border-top: var(--hair); border-bottom: var(--hair);
 }
 .ch-one { --ch-tint: var(--tint-mac); }
@@ -106,12 +101,9 @@ body.home .btn--primary { color: var(--paper); }
 .ch-three { --grid-minor: rgba(22, 24, 28, 0.03); --grid-major: rgba(22, 24, 28, 0.075); }
 .census-stage {
   background-color: var(--paper-raised);
-  background-image:
-    linear-gradient(var(--grid-major) 1px, transparent 1px),
-    linear-gradient(90deg, var(--grid-major) 1px, transparent 1px),
-    linear-gradient(var(--grid-minor) 1px, transparent 1px),
-    linear-gradient(90deg, var(--grid-minor) 1px, transparent 1px);
-  background-size: var(--grid) var(--grid), var(--grid) var(--grid), 8px 8px, 8px 8px;
+  background-image: var(--paper-img);
+  background-size: var(--paper-size);
+  background-position: var(--paper-pos);
   border-top: var(--hair); border-bottom: var(--hair);
 }
 .census-wrap { max-width: var(--page-max); height: 100%; margin-inline: auto; padding: var(--s-6) var(--gutter) var(--s-5); display: grid; grid-template-rows: auto 1fr; gap: var(--s-3); }

@@ -12,6 +12,7 @@ import '@fontsource/geist-mono/400.css';
 import '@fontsource/geist-mono/500.css';
 import '../styles/tokens.css';
 import '../styles/base.css';
+import '../styles/paper.css';
 import '../styles/components.css';
 import InstrumentStrip from '../components/InstrumentStrip.astro';
 import Footer from '../components/Footer.astro';
@@ -39,7 +40,12 @@ const fullTitle = title === 'Bharatnomy' ? title : `${title} · Bharatnomy`;
     <link rel="canonical" href={new URL(Astro.url.pathname, Astro.site)} />
     <link rel="icon" href={u("/favicon.svg")} type="image/svg+xml" />
     <meta name="theme-color" content="#F2F3EF" />
-    <script is:inline>document.documentElement.classList.add('js');</script>
+    <script is:inline>document.documentElement.classList.add('js');
+      (function () {
+        var ok = ['dots', 'fine', 'major', 'wide', 'lines'], p = null;
+        try { p = new URLSearchParams(location.search).get('paper') || localStorage.getItem('bn-paper'); } catch (e) {}
+        document.documentElement.dataset.paper = ok.indexOf(p) > -1 ? p : 'dots';
+      })();</script>
     <slot name="head" />
   </head>
   <body class={bodyClass}>
@@ -51,6 +57,26 @@ const fullTitle = title === 'Bharatnomy' ? title : `${title} · Bharatnomy`;
     <Footer />
     <script>
       import '../scripts/notebook';
+    </script>
+    <div class="paper-toggle" role="group" aria-label="Paper pattern (preview)">
+      <span>Paper</span>
+      <button type="button" data-paper-opt="dots" title="Classic dot grid, 20px">Dots</button>
+      <button type="button" data-paper-opt="fine" title="Fine dot grid, 12px">Fine</button>
+      <button type="button" data-paper-opt="major" title="Dot grid with a heavier dot every fifth square">Major</button>
+      <button type="button" data-paper-opt="wide" title="Wide dot grid, 32px">Wide</button>
+      <button type="button" data-paper-opt="lines" title="Previous graph-paper lines">Lines</button>
+    </div>
+    <script is:inline>
+      (function () {
+        var root = document.documentElement, btns = document.querySelectorAll('[data-paper-opt]');
+        function sync() { btns.forEach(function (b) { b.setAttribute('aria-pressed', String(b.dataset.paperOpt === root.dataset.paper)); }); }
+        btns.forEach(function (b) { b.addEventListener('click', function () {
+          root.dataset.paper = b.dataset.paperOpt;
+          try { localStorage.setItem('bn-paper', b.dataset.paperOpt); } catch (e) {}
+          sync();
+        }); });
+        sync();
+      })();
     </script>
     <slot name="end" />
   </body>
