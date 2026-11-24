@@ -195,6 +195,16 @@ if (census && act) {
     toggle.setAttribute('aria-pressed', String(on));
     plantG.toggleAttribute('hidden', !on);
     plantLegend.toggleAttribute('hidden', !on);
+    fuelToggle.toggleAttribute('hidden', !on);
+  });
+  // optional: colour the dots by fuel (off by default: one ink colour)
+  const fuelToggle = census.querySelector<HTMLButtonElement>('[data-fuel-toggle]')!;
+  const fuelLegend = census.querySelector<HTMLElement>('[data-fuel-legend]')!;
+  fuelToggle.addEventListener('click', () => {
+    const on = fuelToggle.getAttribute('aria-pressed') !== 'true';
+    fuelToggle.setAttribute('aria-pressed', String(on));
+    census.classList.toggle('plants-mono', !on);
+    fuelLegend.toggleAttribute('hidden', !on);
   });
 
   if (reduce) {

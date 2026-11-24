@@ -109,14 +109,14 @@ body.home .btn--primary { color: var(--paper); }
 .census-wrap { max-width: var(--page-max); height: 100%; margin-inline: auto; padding: var(--s-6) var(--gutter) var(--s-5); display: grid; grid-template-rows: auto 1fr; gap: var(--s-3); }
 .census {
   display: grid; min-height: 0;
-  grid-template-columns: minmax(0, 8fr) minmax(0, 4fr);
+  grid-template-columns: minmax(0, 9fr) minmax(0, 3fr);
   grid-template-rows: minmax(0, 1fr) auto;
   grid-template-areas: "map lines" "strip strip";
   column-gap: var(--s-7); row-gap: var(--s-3);
 }
 .census-map {
   grid-area: map; position: relative; min-height: 0;
-  display: grid; grid-template-columns: minmax(0, 1fr) 240px; grid-template-rows: auto minmax(0, 1fr) auto;
+  display: grid; grid-template-columns: minmax(0, 1fr) 210px; grid-template-rows: auto minmax(0, 1fr) auto;
   grid-template-areas: "controls controls" "svg legends" "ruler ruler"; column-gap: var(--s-4);
 }
 .census-map > .census-controls { grid-area: controls; }
@@ -163,7 +163,7 @@ body.home .btn--primary { color: var(--paper); }
 .m-short { display: none; }
 .census-plants-source { margin-top: calc(-1 * var(--s-2)); }
 .census-legend .legend-list .mono { font-size: 0.68rem; }
-.census-svg { width: 100%; height: 100%; min-height: 0; max-height: calc(100svh - 440px); }
+.census-svg { width: 100%; height: 100%; min-height: 0; max-height: calc(100svh - 330px); }
 .census-frame { opacity: 0; }
 .census-decade {
   margin: 0 auto 0 0; white-space: nowrap;
@@ -177,8 +177,8 @@ body.home .btn--primary { color: var(--paper); }
   background: var(--paper-raised); border: var(--hair); padding: 5px 9px; white-space: nowrap;
 }
 .census-lines { grid-area: lines; display: grid; align-content: start; gap: var(--s-4); padding-top: var(--s-6); }
-.census-line { font-size: clamp(1.02rem, 0.95rem + 0.3vw, 1.2rem); line-height: 1.5; max-width: 40ch; }
-.census-line strong { font-family: var(--f-display); font-weight: 800; font-size: 1.55em; line-height: 1; color: var(--accent); }
+.census-line { font-size: 0.9rem; line-height: 1.45; max-width: 34ch; }
+.census-line strong { font-family: var(--f-display); font-weight: 800; font-size: 1.3em; line-height: 1; color: var(--accent); }
 .census-close { font-family: var(--f-display); font-weight: 700; font-size: var(--t-m); line-height: 1.1; max-width: 22ch; }
 .census-aside { max-width: 44ch; margin-top: var(--s-3); }
 .census-source { margin-top: 0; }
@@ -283,4 +283,29 @@ body.home .btn--primary { color: var(--paper); }
   /* the lens rail becomes an ordinary horizontal scroll region, no held screens */
   .ch-two { height: auto !important; padding-block: var(--s-9); }
   .lens-stage { position: static !important; height: auto !important; padding-block: var(--s-4); }
+}
+
+/* home map: power plants in one ink colour unless "By fuel" is on; bigger map, smaller type */
+.census.plants-mono .census-plants circle { fill: var(--ink); }
+.census.plants-mono .census-plants circle.undated { fill: var(--paper-raised); stroke: var(--ink); }
+.fuel-toggle[aria-pressed="true"] { background: var(--ink); color: var(--paper); border-style: solid; }
+.census-title { font-size: clamp(1.5rem, 1.2rem + 1vw, 2.2rem); }
+.ch-three .census-wrap { padding-top: var(--s-5); gap: var(--s-2); }
+.census-lines { padding-top: var(--s-8); gap: var(--s-3); }
+.census-legends .legend-title { font-size: 0.6rem; }
+.census-legends .legend-list .mono, .plant-legend-list .mono { font-size: 0.62rem; }
+.census-strip svg { height: 84px; }
+@media (max-width: 720px) {
+  .census-line { font-size: 0.85rem; }
+  .census-svg { max-height: 26svh; }
+  .census-title { font-size: 1.5rem; }
+  .layer-btn, .plant-toggle { padding: 6px 6px; }
+  .census-controls { flex-wrap: nowrap; }
+  .census-controls .census-decade { position: absolute; top: 38px; left: 0; }
+  .census-map { padding-top: 0; }
+  .census-svg { margin-top: 30px; }
+  .census-ticks { padding-right: 8px; }
+  .census-lines { padding-top: var(--s-2); gap: var(--s-1); }
+  .census-strip svg { height: 44px; }
+  .census-legends .plant-legend .legend-title { margin: 0; }
 }

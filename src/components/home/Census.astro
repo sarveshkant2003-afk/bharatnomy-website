@@ -58,7 +58,7 @@ const plantCards = plants.map((p) => `${p.name.toUpperCase()} · ${p.fuel.toUppe
 const first = built[0];
 const plantsHref = `${DATA_REPO}/tree/${DATA_REF}/${HOME_LAYERS.plants.path}`;
 ---
-<div class="census" data-census data-layers={JSON.stringify(built.map((b) => b.client))} data-plant-cards={JSON.stringify(plantCards)}>
+<div class="census plants-mono" data-census data-layers={JSON.stringify(built.map((b) => b.client))} data-plant-cards={JSON.stringify(plantCards)}>
   <div class="census-map">
     <div class="census-controls">
       <p class="census-decade display" aria-live="off" data-decade></p>
@@ -68,6 +68,7 @@ const plantsHref = `${DATA_REPO}/tree/${DATA_REF}/${HOME_LAYERS.plants.path}`;
       <button type="button" class="plant-toggle label" data-plants-toggle aria-pressed="true">
         <svg viewBox="0 0 14 14" width="14" height="14" aria-hidden="true"><circle cx="7" cy="7" r="4" /></svg><span class="m-long">Power plants</span><span class="m-short">Plants</span>
       </button>
+      <button type="button" class="plant-toggle fuel-toggle label" data-fuel-toggle aria-pressed="false"><span class="m-long">By fuel</span><span class="m-short">Fuel</span></button>
     </div>
     <svg class="sketch census-svg" viewBox={`0 0 ${width} ${height}`} role="img" aria-label={first.L.mapAria} data-map-svg>
       <defs>
@@ -112,7 +113,7 @@ const plantsHref = `${DATA_REPO}/tree/${DATA_REF}/${HOME_LAYERS.plants.path}`;
       ))}
       <figure class="legend plant-legend" data-plant-legend>
         <figcaption class="label legend-title"><span class="m-long">Power plants · {plants.length} · dot size = capacity</span><span class="m-short">Plants · size = MW</span></figcaption>
-        <ul class="plant-legend-list">
+        <ul class="plant-legend-list" data-fuel-legend hidden>
           {fuelsPresent.map((f) => <li><svg viewBox="0 0 12 12" width="12" height="12" aria-hidden="true"><circle cx="6" cy="6" r="4.5" style={`fill:${f.color}`} /></svg><span class="mono">{f.label}<span class="m-long"> {f.n}</span></span></li>)}
         </ul>
         <p class="mono plant-note">● appears in its commissioning year · ○ year not published</p>
