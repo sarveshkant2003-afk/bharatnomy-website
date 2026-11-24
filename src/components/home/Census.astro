@@ -70,7 +70,7 @@ const plantsHref = `${DATA_REPO}/tree/${DATA_REF}/${HOME_LAYERS.plants.path}`;
       </button>
       <button type="button" class="plant-toggle fuel-toggle label" data-fuel-toggle aria-pressed="false"><span class="m-long">By fuel</span><span class="m-short">Fuel</span></button>
     </div>
-    <svg class="sketch census-svg" viewBox={`0 0 ${width} ${height}`} role="img" aria-label={first.L.mapAria} data-map-svg>
+    <svg class="sketch census-svg" viewBox={`0 0 ${width} ${height}`} preserveAspectRatio="xMinYMid meet" role="img" aria-label={first.L.mapAria} data-map-svg>
       <defs>
         <pattern id="census-nodata" width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
           <line x1="0" y1="0" x2="0" y2="6" stroke="#4C535C" stroke-width="0.8" opacity="0.55" />

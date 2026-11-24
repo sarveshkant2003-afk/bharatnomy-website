@@ -309,3 +309,12 @@ body.home .btn--primary { color: var(--paper); }
   .census-strip svg { height: 44px; }
   .census-legends .plant-legend .legend-title { margin: 0; }
 }
+
+/* map larger than half the screen: legends float in the empty south-east corner */
+@media (min-width: 721px) {
+  .census-map { grid-template-columns: minmax(0, 1fr); grid-template-areas: "controls" "svg" "ruler"; }
+  .census-map > .census-legends { position: absolute; right: 0; bottom: 56px; width: 210px; z-index: 2; }
+  .census-svg { max-height: calc(100svh - 250px); }
+  .census-strip svg { height: 64px; }
+  .ch-three .census-wrap { padding-top: var(--s-4); }
+}
