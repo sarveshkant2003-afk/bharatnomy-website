@@ -2,7 +2,7 @@
 import { u } from '../lib/url';
 // A dataset as a museum specimen / luggage tag hanging on a string.
 import { tilt, rng } from '../lib/seed';
-import type { DatasetMeta } from '../lib/data';
+import { type DatasetMeta, spanOf } from '../lib/data';
 interface Props { dataset?: DatasetMeta; planned?: string; note?: string; state?: string; seed?: string; class?: string; headingTag?: 'h2' | 'h3' }
 const { dataset: d, planned, note, state = 'Maharashtra', seed, class: cls = '', headingTag: H = 'h3' } = Astro.props;
 const key = seed ?? d?.code ?? planned ?? 'tag';
@@ -17,7 +17,7 @@ const base = d ? u(`/data/${d.slug}/${d.folder}`) : '';
     <>
       <p class="label tag-code">{d.code}</p>
       <H class="display tag-title"><a href={u(`/datasets/${d.slug}`)}>{d.title}</a></H>
-      <p class="label tag-cover">{state.toUpperCase()} · {d.districts} DISTRICTS · {d.first_year}–{d.last_year}</p>
+      <p class="label tag-cover">{state.toUpperCase()} · {d.districts} DISTRICTS · {spanOf(d)}</p>
       <dl class="tag-facts label">
         <div><dt>Columns</dt><dd class="num">{d.columns}</dd></div>
         <div><dt>Rows</dt><dd class="num">{d.rows.toLocaleString('en-IN')}</dd></div>

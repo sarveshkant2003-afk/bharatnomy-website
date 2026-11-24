@@ -13,6 +13,12 @@ export const STOPS = {
   wetdry_rev: ['#1E6E73', '#7FC0B8', '#EEEDE6', '#D6A86E', '#8A5626'],
   // ordinal monsoon category: large deficient .. large excess
   category: ['#8A5626', '#D6A86E', '#EEEDE6', '#7FC0B8', '#1E6E73'],
+  // CO2 and ash: paper to soot
+  soot: ['#ECEAE2', '#C8C3B6', '#958E7F', '#5F594F', '#2A2723'],
+  // electricity and capacity: the energy lens ochre, light to dark
+  power: ['#F6EED3', '#EBCF86', '#D9A21B', '#9A7212', '#57410B'],
+  // sanitation and ash use: light to deep green
+  clean: ['#EFF0DD', '#C9DFAF', '#86BC7C', '#468C58', '#1F5A39'],
 } as const;
 
 export type ScaleKind = keyof typeof STOPS;
@@ -109,6 +115,26 @@ export function classify(opts: {
 
   // sequential
   const lo = vals[0] ?? 0, hi = vals[vals.length - 1] ?? 1;
+  const n = (x: number) => x.toLocaleString('en-IN', { maximumFractionDigits: d, minimumFractionDigits: d });
+  // Many exact zeros (e.g. CO2 of a hydro-only district): zero gets its own class
+  // and the positive values share the other four, so the classes stay readable.
+  const zeros = vals.filter((v) => v === 0).length;
+  if (opts.method !== 'equal' && lo === 0 && zeros >= vals.length * 0.15 && zeros < vals.length) {
+    const pos = vals.filter((v) => v > 0);
+    const step = 10 ** -d;
+    breaks = [step / 2, ...[0.25, 0.5, 0.75].map((p) => nice(quantile(pos, p) ?? step, d))];
+    for (let i = 1; i < breaks.length; i++) if (breaks[i] <= breaks[i - 1]) breaks[i] = breaks[i - 1] + step;
+    const sz = scaleThreshold<number, string>().domain(breaks).range(stops);
+    const e = [0, pos[0], breaks[1], breaks[2], breaks[3], hi];
+    return {
+      color: (v) => (v == null ? null : sz(+v)),
+      legend: [
+        { color: stops[0], label: `0${u} (none)`, from: 0, to: 0 },
+        ...[1, 2, 3, 4].map((i) => ({ color: stops[i], label: i === 4 ? `${n(e[4])}${u} or more` : `${i === 1 ? 'above 0' : n(e[i])} to under ${n(e[i + 1])}${u}`, from: e[i], to: e[i + 1] })),
+      ],
+      breaks,
+    };
+  }
   if (opts.method === 'equal') {
     const w = (hi - lo) / 5;
     breaks = [1, 2, 3, 4].map((i) => nice(lo + w * i, d));
@@ -118,7 +144,6 @@ export function classify(opts: {
   // collapse duplicate breaks (many equal values) so classes stay ordered
   for (let i = 1; i < breaks.length; i++) if (breaks[i] <= breaks[i - 1]) breaks[i] = breaks[i - 1] + 10 ** -d;
   const s = scaleThreshold<number, string>().domain(breaks).range(stops);
-  const n = (x: number) => x.toLocaleString('en-IN', { maximumFractionDigits: d, minimumFractionDigits: d });
   const edges = [lo, ...breaks, hi];
   return {
     color: (v) => (v == null ? null : s(+v)),

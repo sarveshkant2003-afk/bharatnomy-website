@@ -20,9 +20,18 @@ export interface MetricFile {
 }
 export interface DatasetMeta {
   slug: string; code: string; lens: string; folder: string; path: string; title: string;
-  defaultMetric: string; source: string; sourceUrl: string;
+  defaultMetric: string; source: string; sourceUrl: string; sourceLink: string; agency: string; computed: string;
+  tab: string; rowUnit: string; time: 'year' | 'fy' | 'date'; aggregate?: string; baseline: [number, number] | null;
+  stateLabel?: string; noData?: string; caveat?: string; notes: { label: string; text: string }[];
   rows: number; districts: number; columns: number; first_year: number; last_year: number;
+  years: number[]; year_labels: Record<string, string>; totals_kb: number | null;
   csv_kb: number; json_kb: number; metrics: string[];
+}
+
+/** "1951–2024", "2017-18–2025-26", or one label for a single year. */
+export function spanOf(d: DatasetMeta): string {
+  const a = d.year_labels[d.first_year], b = d.year_labels[d.last_year];
+  return a === b ? a : a.includes('-') || a.includes(' ') ? `${a} to ${b}` : `${a}–${b}`;
 }
 export interface Stats {
   district_count: number; temp_first_year: number; temp_last_year: number; temp_year_span: number;

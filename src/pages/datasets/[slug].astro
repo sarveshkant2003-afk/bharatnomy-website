@@ -10,10 +10,11 @@ import TrendChart from '../../components/TrendChart.astro';
 import Legend from '../../components/Legend.astro';
 import Button from '../../components/Button.astro';
 import StickerLabel from '../../components/StickerLabel.astro';
-import { stats, readme, metricFile, yearSlice, districts } from '../../lib/data';
+import { stats, readme, metricFile, yearSlice, districts, spanOf } from '../../lib/data';
+import { chicago } from '../../lib/cite';
 import { parseReadme, block, inline, tableRows, bullets } from '../../lib/md';
 import { classify } from '../../lib/scales';
-import { stampDate, fmt } from '../../lib/format';
+import { stampDate, fmt, noEmDash } from '../../lib/format';
 import { METRICS } from '../../config/metrics.mjs';
 import '../../styles/pages.css';
 
@@ -29,48 +30,55 @@ const source = sec['Source'] ?? '';
 const scriptUrl = source.match(/\*\*Script:\*\*.*?\((https?:[^)]+)\)/)?.[1];
 const downloaded = source.match(/\*\*Downloaded:\*\*\s*(.+)/)?.[1]?.trim();
 const columns = tableRows(sec['Columns'] ?? '');
-const notes = bullets(sec['Notes from the warehouse'] ?? '');
+const notes = bullets(sec['Notes from the warehouse'] ?? '').map(noEmDash);
+const method = sec['How it is computed'] ?? sec['Bharatnomy calculation'] ?? '';
 const meta = METRICS.find((m) => m.id === d.defaultMetric)!;
 const mf = metricFile(d.slug, d.defaultMetric);
 const latest = mf.years[mf.years.length - 1];
 const vals = yearSlice(mf, latest) as Record<string, number>;
 const cls = classify({ kind: meta.scale as any, breaks: meta.breaks, values: Object.values(vals), decimals: meta.decimals, unit: meta.unit, fixed: meta.fixed });
 const colors = Object.fromEntries(Object.entries(vals).map(([k, v]) => [k, cls.color(v)]));
-const vv = Object.values(vals).sort((a, b) => a - b);
-const isTemp = d.slug === 'temperature';
-const baseline: [number, number] = isTemp ? [1991, 2020] : [1971, 2020];
-const srcLine = `${d.source.toUpperCase()}, ${d.first_year}–${d.last_year} · DISTRICT INDICES COMPUTED BY BHARATNOMY`;
+const vv = Object.values(vals).filter((v) => v != null).sort((a, b) => a - b);
+const yl = (y: number) => d.year_labels[y] ?? String(y);
+const span = spanOf(d);
+const baseline = d.baseline ?? undefined;
+const stateLabel = d.stateLabel ?? `${s.district_count}-district average`;
+const longRecord = mf.years.length >= 30;
+const srcLine = `${d.source.toUpperCase()}, ${span} · ${d.computed.toUpperCase()}`;
+const tone = d.lens.startsWith('Energy') ? 'eng' : 'clm';
+const cite = chicago({ title: d.title, place: 'Maharashtra', span, code: d.code, version: s.data.short, released: s.data.date, url: `https://bharatnomy.com/datasets/${d.slug}`, agency: d.agency });
 const atlas = u(`/atlas?dataset=${d.slug}&metric=${d.defaultMetric}&year=${latest}`);
 const ds = districts();
 const top = Object.entries(vals).sort((a, b) => b[1] - a[1])[0];
 const topName = ds.find((x) => x.lgd === top[0])?.name;
 ---
-<Notebook title={d.title} description={r.intro.split('\n')[0]} code="BN-DATA">
+<Notebook title={d.title} description={noEmDash(r.intro.split('\n')[0])} code="BN-DATA">
   <article class="lab sheet">
     <header class="lab-head">
       <p class="label soft"><a href={u("/datasets")}>Datasets</a> / {d.code}</p>
       <h1 class="display t-xl">{d.title}</h1>
-      <p class="label lab-cover">MAHARASHTRA · {d.districts} DISTRICTS · {d.first_year}–{d.last_year} · {d.lens.toUpperCase()}</p>
+      <p class="label lab-cover">MAHARASHTRA · {d.districts} DISTRICTS · {span} · {d.lens.toUpperCase()}</p>
     </header>
 
     <div class="lab-main">
-      <p class="t-lead lab-summary" set:html={inline(r.intro)} />
+      <p class="t-lead lab-summary" set:html={inline(noEmDash(r.intro))} />
 
       <figure class="lab-map">
-        <SketchMap title={`${meta.label}, ${latest}`} values={vals} range={[vv[0], vv[vv.length - 1]]} colors={colors} unit={meta.unit} width={620} height={455} seedSalt={latest} />
-        <Legend title={`${meta.short} · ${latest}${meta.unit && meta.unit !== 'SPI' ? ' · ' + meta.unit.toUpperCase() : ''}`} entries={cls.legend} seed={d.slug} />
-        <figcaption class="source label">SOURCE: {srcLine} · {meta.label.toUpperCase()} · {latest} · <a href={atlas}>OPEN IN ATLAS</a></figcaption>
+        <SketchMap title={`${meta.label}, ${yl(latest)}`} values={vals} range={[vv[0], vv[vv.length - 1]]} colors={colors} unit={meta.unit} width={620} height={455} seedSalt={latest} />
+        <Legend title={`${meta.short} · ${yl(latest)}${meta.unit && meta.unit !== 'SPI' ? ' · ' + meta.unit.toUpperCase() : ''}`} entries={d.noData ? [...cls.legend, { color: 'transparent', label: d.noData }] : cls.legend} seed={d.slug} />
+        <figcaption class="source label">SOURCE: {srcLine} · {meta.label.toUpperCase()} · {yl(latest).toUpperCase()} · <a href={atlas}>OPEN IN ATLAS</a></figcaption>
       </figure>
 
       <section class="lab-sec" aria-labelledby="s-what">
         <h2 id="s-what" class="display t-m">What is in it</h2>
-        <p>One row per district per year: {d.rows.toLocaleString('en-IN')} rows, {d.columns} columns, {d.districts} districts, {d.first_year} to {d.last_year}. In {latest}, the highest {meta.short.toLowerCase()} was in {topName}: {fmt(top[1], meta.decimals)}{meta.unit === '%' ? '%' : ' ' + meta.unit}.</p>
+        <p>One row per {d.rowUnit}: {d.rows.toLocaleString('en-IN')} rows, {d.columns} columns{d.aggregate ? <>, added up into {d.districts} districts on the maps</> : <>, {d.districts} districts</>}, {span.replace('–', ' to ')}. In {yl(latest)}, the highest {meta.short.toLowerCase()} was in {topName}: {fmt(top[1], meta.decimals)}{meta.unit === '%' ? '%' : ' ' + meta.unit}.</p>
         <Fragment set:html={block(source)} />
       </section>
 
       <section class="lab-sec" aria-labelledby="s-how">
         <h2 id="s-how" class="display t-m">How it is computed</h2>
-        <Fragment set:html={block(sec['How it is computed'] ?? '')} />
+        <Fragment set:html={block(method)} />
+        {d.aggregate && <p>On this site, the rows are added up by the district each {d.aggregate === 'odf' ? 'village count belongs to' : d.aggregate === 'plants' ? 'plant stands in' : 'station stands in'}, on 2011 boundaries (Palghar's rows go into Thane), and shares and per-unit figures are recomputed from those totals. The district totals are a separate download.</p>}
       </section>
 
       <section class="lab-sec" aria-labelledby="s-cols">
@@ -90,32 +98,61 @@ const topName = ds.find((x) => x.lgd === top[0])?.name;
 
       <section class="lab-sec" aria-labelledby="s-trend">
         <h2 id="s-trend" class="display t-m">Over time</h2>
-        <TrendChart
-          caption={`35-district average · ${meta.label} · ${d.first_year}–${d.last_year}`}
-          years={mf.years} series={[{ label: '35-district average', values: mf.state_mean as number[], style: 'faint' }]}
-          rolling={10} baseline={baseline} highlight={latest} zeroLine={meta.breaks !== 'quantile'}
-          unit={meta.unit} decimals={meta.decimals} title={`${meta.label}, 35-district average`}
-          width={720} height={250} source={srcLine} href={atlas}
-        />
-        <p class="soft lab-small">The 35-district average is a simple mean of the districts, not weighted by area. The blue line is the 10-year rolling mean; the shaded band is the {baseline[0]} to {baseline[1]} normal.</p>
+        {mf.years.length >= 5 ? (
+          <>
+            <TrendChart
+              caption={`${stateLabel} · ${meta.label} · ${span}`}
+              years={mf.years} series={[{ label: stateLabel, values: mf.state_mean as number[], style: 'faint' }]}
+              rolling={longRecord ? 10 : undefined} baseline={baseline} highlight={latest} zeroLine={meta.breaks !== 'quantile'}
+              unit={meta.unit} decimals={meta.decimals} title={`${meta.label}, ${stateLabel}`} xLabel={yl}
+              width={720} height={250} source={srcLine} href={atlas}
+            />
+            <p class="soft lab-small">{d.stateLabel ? `${d.stateLabel}: every district added up, with per-unit figures recomputed from the totals.` : `The ${stateLabel} is a simple mean of the districts, not weighted by area.`}{longRecord && ' The blue line is the 10-year rolling mean.'}{baseline && ` The shaded band is the ${baseline[0]} to ${baseline[1]} normal.`}</p>
+          </>
+        ) : (
+          <>
+            <p>{mf.years.length === 1 ? `This release covers one year, ${yl(mf.years[0])}, so there is no trend yet.` : `This release has ${mf.years.length} dates, so here are the state figures for each.`}</p>
+            <div class="table-wrap">
+              <table class="dense">
+                <thead><tr><th scope="col">{d.time === 'date' ? 'Date' : 'Year'}</th>{d.metrics.map((id) => <th scope="col" class="r">{METRICS.find((x) => x.id === id)!.short}</th>)}</tr></thead>
+                <tbody>{mf.years.map((y, i) => (
+                  <tr><td class="num">{yl(y)}</td>{d.metrics.map((id) => { const mm = METRICS.find((x) => x.id === id)!; const v = metricFile(d.slug, id).state_mean?.[i]; return <td class="num r">{v == null ? '–' : `${fmt(v, mm.decimals)}${mm.unit === '%' ? '%' : ''}`}</td>; })}</tr>
+                ))}</tbody>
+              </table>
+            </div>
+            <p class="soft lab-small">{stateLabel}: every district added up, with shares recomputed from the totals.</p>
+          </>
+        )}
       </section>
 
       <section class="lab-sec" aria-labelledby="s-changes">
         <h2 id="s-changes" class="display t-m">Changes</h2>
-        <p>This release is built from the data repo at commit <a href={`${s.data.repo}/tree/${s.data.commit}/${d.path}`}><code>{s.data.short}</code></a> ({stampDate(s.data.date)}){downloaded && <>, from IMD files downloaded on {downloaded}</>}. Any change to the data or method will be listed here with its date.</p>
+        <p>This release is built from the data repo at commit <a href={`${s.data.repo}/tree/${s.data.commit}/${d.path}`}><code>{s.data.short}</code></a> ({stampDate(s.data.date)}){downloaded && <>, from source files downloaded on {downloaded}</>}. Any change to the data or method will be listed here with its date.</p>
       </section>
 
       <section class="lab-sec" aria-labelledby="s-cite">
         <h2 id="s-cite" class="display t-m">How to cite</h2>
-        <p class="cite mono">Bharatnomy (2026), {d.title}, {d.code}. Data from the India Meteorological Department. Licence: CC BY 4.0. https://bharatnomy.com/datasets/{d.slug}</p>
+        <p class="soft">Chicago style (17th edition). Use the form your publication follows; the version is the data commit, so a citation points at the exact files you downloaded.</p>
+        <div class="cite-block">
+          <p class="label">Author-date · reference list</p>
+          <p class="cite mono" id="cite-ref">{cite.reference}</p>
+          <p class="label soft">In text: {cite.inText} <button type="button" class="label cite-copy" data-copy="cite-ref">Copy reference</button></p>
+        </div>
+        <div class="cite-block">
+          <p class="label">Notes and bibliography · footnote</p>
+          <p class="cite mono" id="cite-note">1. {cite.note}</p>
+          <p class="label">Bibliography</p>
+          <p class="cite mono" id="cite-bib">{cite.bibliography}</p>
+          <p class="label soft"><button type="button" class="label cite-copy" data-copy="cite-note">Copy note</button> <button type="button" class="label cite-copy" data-copy="cite-bib">Copy bibliography entry</button></p>
+        </div>
       </section>
     </div>
 
     <aside class="lab-side">
       <div class="lab-side-inner">
-        <InstrumentPanel tone="clm" title={`${d.code} · COVERAGE`} rows={[
+        <InstrumentPanel tone={tone} title={`${d.code} · COVERAGE`} rows={[
           { label: 'Districts', value: String(d.districts), note: '2011 BOUNDARIES' },
-          { label: 'Years', value: `${d.first_year}–${d.last_year}` },
+          { label: d.time === 'date' ? 'Dates' : 'Years', value: span },
           { label: 'Rows', value: d.rows.toLocaleString('en-IN') },
           { label: 'Columns', value: String(d.columns) },
           { label: 'Licence', value: 'CC BY 4.0' },
@@ -123,19 +160,25 @@ const topName = ds.find((x) => x.lgd === top[0])?.name;
         <div class="lab-dl">
           <Button href={u(`/data/${d.slug}/${d.folder}.csv`)} download primary arrow="↓">CSV · {d.csv_kb} KB</Button>
           <Button href={u(`/data/${d.slug}/${d.folder}.json`)} download arrow="↓">JSON · {d.json_kb} KB</Button>
+          {d.totals_kb != null && <Button href={u(`/data/${d.slug}/${d.folder}_district-totals.csv`)} download arrow="↓">District totals · {d.totals_kb} KB</Button>}
           <Button href={u(`/data/${d.slug}/README.md`)} download arrow="↓">README (.md)</Button>
           <Button href={atlas}>Open in Atlas</Button>
         </div>
-        <p class="lab-links mono"><a class="ext" href={d.sourceUrl}>Source: IMD gridded data</a>{scriptUrl && <><br /><a class="ext" href={scriptUrl}>Build script on GitHub</a></>}</p>
+        <p class="lab-links mono"><a class="ext" href={d.sourceUrl}>Source: {d.sourceLink}</a>{scriptUrl && <><br /><a class="ext" href={scriptUrl}>Build script on GitHub</a></>}</p>
         <div class="lab-notes">
-          <MarginNote label="2011 boundaries">Thane includes today's Palghar. The data uses 2011 boundaries, so we do too.</MarginNote>
-          {isTemp
-            ? <MarginNote label="Grid smoothing">A 1-degree grid cell is about 110 km wide, so it smooths out the hottest afternoons. Heat wave counts are low and best read as a trend.</MarginNote>
-            : <MarginNote label="Pune, 2005">IMD's grid gives Pune an exceptional 2005 (4,342 mm against a 1971 to 2020 average of 1,011 mm). We keep it as IMD published it.</MarginNote>}
-          <MarginNote label="Small districts">Mumbai City and Mumbai Suburban rest on very few grid cells, so their figures describe the surrounding area as much as the district.</MarginNote>
+          {d.notes.map((n) => <MarginNote label={n.label}>{n.text}</MarginNote>)}
         </div>
-        <StickerLabel text="CITE AS: BHARATNOMY (2026)" seed={`cite-${d.slug}`} />
+        <StickerLabel text={`CITE: BHARATNOMY ${s.data.date.slice(0, 4)} · CHICAGO`} seed={`cite-${d.slug}`} />
       </div>
     </aside>
   </article>
+  <script>
+    // copy a citation; the button says so for a moment
+    document.querySelectorAll<HTMLButtonElement>('[data-copy]').forEach((b) => b.addEventListener('click', async () => {
+      const text = document.getElementById(b.dataset.copy!)?.textContent?.trim() ?? '';
+      const was = b.textContent;
+      try { await navigator.clipboard.writeText(text); b.textContent = 'Copied'; } catch { b.textContent = 'Select and copy the text'; }
+      setTimeout(() => { b.textContent = was; }, 1600);
+    }));
+  </script>
 </Notebook>

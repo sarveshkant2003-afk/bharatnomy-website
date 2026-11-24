@@ -11,7 +11,7 @@ import path from 'node:path';
 import { execFileSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { csvParse } from 'd3-dsv';
-import { DATA_REPO, DATA_REF, STATE, STATES_MAPPED, BOUNDARIES_PATH, DATASETS, INDIA_BOUNDARIES, HOME_LAYERS } from '../src/config/data.mjs';
+import { DATA_REPO, DATA_REF, STATE, STATES_MAPPED, BOUNDARIES_PATH, DATASETS, INDIA_BOUNDARIES, HOME_LAYERS, FOLD } from '../src/config/data.mjs';
 import { METRICS } from '../src/config/metrics.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
@@ -115,21 +115,99 @@ const fmt = (v, d) => v.toLocaleString('en-IN', { minimumFractionDigits: d, maxi
 const upper = (s) => s.toUpperCase();
 
 // ------------------------------------------------------------------ 3. data
+// The Atlas works on whole years: a financial year 2017-18 is stored as 2017,
+// a snapshot date 2026-11-24 as 2026. Labels for display are kept in stats.json.
+const timeOf = (ds) => (r) => (ds.time === 'fy' ? +String(r.year).slice(0, 4) : ds.time === 'date' ? +String(r.date).slice(0, 4) : +r.year);
+const yearLabel = (ds, y) => ds.yearLabels?.[y] ?? (ds.time === 'fy' ? `${y}-${String(y + 1).slice(2)}` : String(y));
+const num = (v) => (v === '' || v == null || Number.isNaN(+v) ? null : +v);
+const fold = (c) => FOLD[c] ?? c;
+
+// Tables with one row per station or plant are added up by district (2011
+// boundaries, so Palghar goes into Thane). Each returns district rows and the
+// same measures for the whole state, both keyed by year.
+const AGGREGATES = {
+  stations(rows, t) {
+    const acc = new Map(), st = new Map();
+    const add = (m, k, r) => {
+      const a = m.get(k) ?? { co2: 0, gen: 0, coal: 0, n: 0, gens: 0 };
+      const g = num(r.net_generation_gwh), c = num(r.co2_emissions_t);
+      if (c != null) a.co2 += c;
+      if (g != null) { a.gen += g; a.gens++; if (g > 0) a.n++; if (r.fuel_1 === 'COAL') a.coal += g; }
+      m.set(k, a);
+    };
+    for (const r of rows) { const y = t(r); add(acc, `${fold(r.lgd_district_code)}|${y}`, r); add(st, y, r); }
+    const out = (a) => ({
+      co2_emissions_mt: round(a.co2 / 1e6, 4), net_generation_gwh: round(a.gen, 2), coal_generation_gwh: round(a.coal, 2),
+      co2_intensity_t_per_mwh: a.gen > 0 ? round(a.co2 / (a.gen * 1000), 3) : null, stations_generating: a.n,
+    });
+    return {
+      rows: [...acc].map(([k, a]) => { const [lgd, y] = k.split('|'); return { lgd_district_code: lgd, year: +y, ...out(a) }; }),
+      state: Object.fromEntries([...st].map(([y, a]) => [y, out(a)])),
+    };
+  },
+  plants(rows, t) {
+    const acc = new Map(), st = new Map();
+    const add = (m, k, r) => {
+      const a = m.get(k) ?? { gen: 0, use: 0, mw: 0 };
+      a.gen += num(r.ash_generation_lmt) ?? 0; a.use += num(r.ash_utilization_lmt) ?? 0; a.mw += num(r.installed_capacity_mw) ?? 0;
+      m.set(k, a);
+    };
+    for (const r of rows) {
+      if (!r.lgd_district_code) continue;          // State total row
+      const y = t(r); add(acc, `${fold(r.lgd_district_code)}|${y}`, r); add(st, y, r);
+    }
+    const out = (a) => ({ ash_generation_lmt: round(a.gen, 2), ash_utilization_lmt: round(a.use, 2), ash_utilization_pct: a.gen > 0 ? round((100 * a.use) / a.gen, 1) : null, coal_capacity_mw: round(a.mw, 0) });
+    return {
+      rows: [...acc].map(([k, a]) => { const [lgd, y] = k.split('|'); return { lgd_district_code: lgd, year: +y, ...out(a) }; }),
+      state: Object.fromEntries([...st].map(([y, a]) => [y, out(a)])),
+    };
+  },
+  odf(rows, t) {
+    const acc = new Map(), st = new Map();
+    const add = (m, k, r) => {
+      const a = m.get(k) ?? { tot: 0, odf: 0, model: 0 };
+      a.tot += num(r.total_villages) ?? 0; a.odf += num(r.odf_plus_villages) ?? 0; a.model += num(r.odf_plus_model_villages) ?? 0;
+      m.set(k, a);
+    };
+    for (const r of rows) {
+      if (!r.lgd_district_code) continue;
+      const y = t(r); add(acc, `${fold(r.lgd_district_code)}|${y}`, r); add(st, y, r);
+    }
+    const out = (a) => ({
+      total_villages: a.tot, odf_plus_model_villages: a.model,
+      odf_plus_villages_pct: a.tot ? round((100 * a.odf) / a.tot, 2) : null, odf_plus_model_villages_pct: a.tot ? round((100 * a.model) / a.tot, 2) : null,
+    });
+    return {
+      rows: [...acc].map(([k, a]) => { const [lgd, y] = k.split('|'); return { lgd_district_code: lgd, year: +y, ...out(a) }; }),
+      state: Object.fromEntries([...st].map(([y, a]) => [y, out(a)])),
+    };
+  },
+};
+
 function loadDataset(repoDir, ds) {
   const dir = path.join(repoDir, ds.path);
   const csvFile = path.join(dir, `${ds.folder}.csv`);
   if (!fs.existsSync(csvFile)) fail(`${ds.slug}: CSV not found at ${ds.path}`);
   const text = fs.readFileSync(csvFile, 'utf8');
-  const rows = csvParse(text);
-  const cols = rows.columns;
+  const parsed = csvParse(text);
+  const cols = parsed.columns;
+  const source = parsed.filter((r) => r.lgd_state_code === STATE.lgd);
+  const t = timeOf(ds);
+  let rows, state = null;
+  if (ds.aggregate) {
+    if (!AGGREGATES[ds.aggregate]) fail(`${ds.slug}: unknown aggregate ${ds.aggregate}`);
+    ({ rows, state } = AGGREGATES[ds.aggregate](source, t));
+  } else {
+    rows = source.map((r) => ({ ...r, year: t(r) }));
+  }
   const metrics = METRICS.filter((m) => m.dataset === ds.slug);
-  const absent = metrics.filter((m) => !cols.includes(m.id)).map((m) => m.id);
-  if (absent.length) fail(`${ds.slug}: registry columns missing from CSV: ${absent.join(', ')}`);
-  const stateRows = rows.filter((r) => r.lgd_state_code === STATE.lgd);
-  const years = [...new Set(stateRows.map((r) => +r.year))].sort((a, b) => a - b);
-  const codes = [...new Set(stateRows.map((r) => r.lgd_district_code))].sort();
-  const names = Object.fromEntries(stateRows.map((r) => [r.lgd_district_code, r.district]));
-  return { ds, dir, rows: stateRows, cols, years, codes, names, metrics, csvText: text };
+  const have = new Set(rows.length ? Object.keys(rows[0]) : []);
+  const absent = metrics.filter((m) => !have.has(m.id)).map((m) => m.id);
+  if (absent.length) fail(`${ds.slug}: registry columns missing from the table: ${absent.join(', ')}`);
+  const years = [...new Set(rows.map((r) => +r.year))].sort((a, b) => a - b);
+  const codes = [...new Set(rows.map((r) => r.lgd_district_code))].sort();
+  const names = Object.fromEntries(source.filter((r) => r.lgd_district_code && fold(r.lgd_district_code) === r.lgd_district_code).map((r) => [r.lgd_district_code, r.district]));
+  return { ds, dir, rows, source, cols, years, codes, names, metrics, state, csvText: text };
 }
 
 function writeDataset(d, dataStamp) {
@@ -154,13 +232,19 @@ function writeDataset(d, dataStamp) {
       if (unknown.length) fail(`${m.id}: categories not in registry: ${unknown.join(', ')}`);
     }
     const all = isCat ? [] : Object.values(values).flat().filter((v) => v != null).sort((a, b) => a - b);
+    // state line: the state total (aggregated tables) or the simple mean of districts
+    const stateSeries = isCat ? null : d.state
+      ? d.years.map((y) => round(d.state[y]?.[m.id] ?? null, m.decimals + 1))
+      : d.years.map((_, i) => round(mean(d.codes.map((c) => values[c][i])), m.decimals + 1));
+    const [ya, yb] = [yearLabel(d.ds, d.years[0]), yearLabel(d.ds, d.years[d.years.length - 1])];
+    const span = ya === yb ? ya : /[- ]/.test(ya) ? `${ya} to ${yb}` : `${ya}–${yb}`;
     const out = {
       metric: m.id, dataset: d.ds.slug, label: m.label, unit: m.unit,
       years: d.years, values,
-      state_mean: isCat ? null : d.years.map((_, i) => round(mean(d.codes.map((c) => values[c][i])), m.decimals + 1)),
+      state_mean: stateSeries,
       domain: isCat ? m.categories : [all[0], all[all.length - 1]],
       p05_p95: isCat ? null : [round(quantile(all, 0.05), 3), round(quantile(all, 0.95), 3)],
-      source: `${d.ds.source}, ${d.years[0]}–${d.years[d.years.length - 1]}. District indices computed by Bharatnomy.`,
+      source: `${d.ds.source}, ${span}. ${d.ds.computed[0].toUpperCase()}${d.ds.computed.slice(1)}.`,
       updated: dataStamp.date,
     };
     const f = path.join(outDir, `${m.id}.json`);
@@ -172,12 +256,21 @@ function writeDataset(d, dataStamp) {
   // Downloads: original CSV, README, full JSON (array of row objects).
   fs.writeFileSync(path.join(outDir, `${d.ds.folder}.csv`), d.csvText);
   fs.copyFileSync(path.join(d.dir, 'README.md'), path.join(outDir, 'README.md'));
-  const typed = d.rows.map((r) => Object.fromEntries(d.cols.map((c) => {
+  const TEXT = new Set(['state_ut', 'lgd_state_code', 'district', 'lgd_district_code', 'year', 'date', 'decade', 'monsoon_category', 'monsoon_drought_class', 'sbm_district_code']);
+  const typed = d.source.map((r) => Object.fromEntries(d.cols.map((c) => {
     const v = r[c];
-    if (['state_ut', 'lgd_state_code', 'district', 'lgd_district_code', 'year', 'decade', 'monsoon_category', 'monsoon_drought_class'].includes(c)) return [c, v];
-    return [c, v === '' ? null : +v];
+    if (TEXT.has(c)) return [c, v];
+    return [c, v === '' ? null : Number.isNaN(+v) ? v : +v];
   })));
   fs.writeFileSync(path.join(outDir, `${d.ds.folder}.json`), JSON.stringify(typed));
+  // Aggregated tables also get the district totals the maps use.
+  if (d.ds.aggregate) {
+    const ids = d.metrics.map((m) => m.id);
+    const head = ['lgd_district_code', 'district', 'year', 'year_label', ...ids];
+    const lines = d.rows.slice().sort((a, b) => a.lgd_district_code.localeCompare(b.lgd_district_code) || a.year - b.year)
+      .map((r) => [r.lgd_district_code, d.names[r.lgd_district_code] ?? '', r.year, yearLabel(d.ds, r.year), ...ids.map((i) => r[i] ?? '')].join(','));
+    fs.writeFileSync(path.join(outDir, `${d.ds.folder}_district-totals.csv`), [head.join(','), ...lines].join('\n') + '\n');
+  }
   // Per-district rows for the Atlas "download this district" button are cut
   // client-side from the full CSV, so no extra files here.
   return { report, files };
@@ -204,7 +297,7 @@ function decadeFrames(temp, metricId) {
 // Air quality: share of reported city-days with AQI above 100, per district and
 // year. The map uses 2011 boundaries (Thane includes Palghar), so Palghar's
 // bulletin cities are pooled into Thane from the raw city-day counts.
-const FOLD = { '665': '497' };   // Palghar -> Thane
+// FOLD (Palghar -> Thane) comes from src/config/data.mjs.
 function buildAqi(repoDir, districts) {
   const L = HOME_LAYERS.aqi;
   const dir = path.join(repoDir, L.path);
@@ -350,6 +443,7 @@ const loaded = DATASETS.map((ds) => loadDataset(repo.dir, ds));
 const allCodes = new Set(loaded.flatMap((d) => d.codes));
 const geo = buildBoundaries(repo.dir, allCodes);
 const india = buildIndia();
+for (const d of loaded) for (const c of d.codes) d.names[c] ??= geo.districts.find((x) => x.lgd === c)?.name;
 const written = loaded.map((d) => writeDataset(d, stamp));
 const temp = loaded.find((d) => d.ds.slug === 'temperature');
 const rain = loaded.find((d) => d.ds.slug === 'rainfall');
@@ -362,8 +456,10 @@ const plants = buildPlants(repo.dir);
 const { stats, ticker } = buildStats(temp, rain, frames, geo.districts, stamp);
 const datasetsMeta = loaded.map((d) => ({
   ...d.ds,
-  rows: d.rows.length, districts: d.codes.length, columns: d.cols.length,
+  rows: d.source.length, districts: d.codes.length, columns: d.cols.length,
   first_year: d.years[0], last_year: d.years[d.years.length - 1],
+  years: d.years, year_labels: Object.fromEntries(d.years.map((y) => [y, yearLabel(d.ds, y)])),
+  totals_kb: d.ds.aggregate ? Math.round(fs.statSync(path.join(OUT, d.ds.slug, `${d.ds.folder}_district-totals.csv`)).size / 1024) : null,
   csv_kb: Math.round(Buffer.byteLength(d.csvText) / 1024),
   json_kb: Math.round(fs.statSync(path.join(OUT, d.ds.slug, `${d.ds.folder}.json`)).size / 1024),
   metrics: d.metrics.map((m) => m.id),
@@ -378,8 +474,8 @@ log(`data commit ${stamp.short} (${stamp.date})\n`);
 for (const d of loaded) {
   const nameMismatch = d.codes.filter((c) => geo.districts.find((x) => x.lgd === c)?.name !== d.names[c]);
   log(`${d.ds.slug.toUpperCase()}  ${d.ds.folder}`);
-  log(`  rows ${d.rows.length} · districts ${d.codes.length} · years ${d.years[0]}–${d.years.at(-1)} (${d.years.length}) · columns ${d.cols.length}`);
-  log(`  rows = districts × years: ${d.rows.length === d.codes.length * d.years.length ? 'yes' : 'NO'}`);
+  log(`  rows ${d.source.length}${d.ds.aggregate ? ` (${d.rows.length} district-years after adding up)` : ''} · districts ${d.codes.length} · years ${d.years[0]}–${d.years.at(-1)} (${d.years.length}) · columns ${d.cols.length}`);
+  if (!d.ds.aggregate) log(`  rows = districts × years: ${d.rows.length === d.codes.length * d.years.length ? 'yes' : 'NO'}`);
   if (nameMismatch.length) log(`  name differs from boundary file (joined on LGD, not name): ${nameMismatch.map((c) => d.names[c]).join(', ')}`);
   const w = written[loaded.indexOf(d)];
   log('  metric                              nulls   kb');

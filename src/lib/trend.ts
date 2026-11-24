@@ -25,6 +25,7 @@ export interface TrendOpts {
   rolling?: number;              // rolling mean window (applied to series[0])
   zeroLine?: boolean;
   title?: string;                // accessible title
+  xLabel?: (y: number) => string; // tick label for a year (e.g. "2017-18"); short records get a tick every year
   desc?: string;
 }
 
@@ -51,7 +52,9 @@ export function renderTrend(o: TrendOpts): string {
   const y = scaleLinear().domain([y0, hi + padY]).range([H - m.b, m.t]).nice(4);
   const d = o.decimals ?? 0;
   const yt = y.ticks(4);
-  const xt = ticks(Math.ceil(years[0] / 10) * 10, Math.floor(years[years.length - 1] / 10) * 10, 8).filter((t) => t % 10 === 0);
+  const xl = o.xLabel ?? String;
+  const xt = years.length <= 12 ? years : ticks(Math.ceil(years[0] / 10) * 10, Math.floor(years[years.length - 1] / 10) * 10, 8).filter((t) => t % 10 === 0);
+  const anchor = (t: number) => (years.length > 12 ? 'middle' : t === years[0] ? 'start' : t === years[years.length - 1] ? 'end' : 'middle');
 
   const mk = (vals: (number | null)[]) =>
     d3line<number | null>().defined((v) => v != null).x((_, i) => x(years[i])).y((v) => y(v as number)).curve(curveLinear)(vals) ?? '';
@@ -75,20 +78,21 @@ export function renderTrend(o: TrendOpts): string {
   parts.push(`<line class="trend-axis" x1="${m.l}" x2="${W - m.r}" y1="${H - m.b}" y2="${H - m.b}"/>`);
   for (const t of xt) {
     parts.push(`<line class="trend-axis" x1="${x(t).toFixed(1)}" x2="${x(t).toFixed(1)}" y1="${H - m.b}" y2="${H - m.b + 4}"/>`);
-    parts.push(`<text class="trend-tick" x="${x(t).toFixed(1)}" y="${H - m.b + 15}" text-anchor="middle">${t}</text>`);
+    parts.push(`<text class="trend-tick" x="${x(t).toFixed(1)}" y="${H - m.b + 15}" text-anchor="${anchor(t)}">${esc(xl(t))}</text>`);
   }
   if (o.unit) parts.push(`<text class="trend-tick trend-unit" x="0" y="10">${esc(o.unit.toUpperCase())}</text>`);
   // highlight year
   if (o.highlight != null && years.includes(o.highlight)) {
     const hx = x(o.highlight).toFixed(1);
     parts.push(`<line class="trend-hl" x1="${hx}" x2="${hx}" y1="${m.t}" y2="${H - m.b}"/>`);
-    parts.push(`<text class="trend-hllabel" x="${hx}" y="${m.t - 6}" text-anchor="end">${o.highlight}</text>`);
+    parts.push(`<text class="trend-hllabel" x="${hx}" y="${m.t - 6}" text-anchor="end">${esc(xl(o.highlight))}</text>`);
   }
   // series
   o.series.forEach((s, i) => {
     const cls = s.style === 'accent' ? 'trend-pen' : s.style === 'faint' ? 'trend-faint' : 'trend-ink';
     const extra = `${s.dash ? ` stroke-dasharray="${s.dash}"` : ''}${s.color ? ` style="stroke:${s.color}"` : ''}`;
     parts.push(`<path class="${cls}" d="${mk(s.values)}"${extra}><title>${esc(s.label)}</title></path>`);
+    if (years.length <= 12) for (let k = 0; k < years.length; k++) { const v = s.values[k]; if (v != null) parts.push(`<circle class="trend-pt" cx="${x(years[k]).toFixed(1)}" cy="${y(v).toFixed(1)}" r="2.2"${s.color ? ` style="fill:${s.color}"` : ''}/>`); }
     if (i === 0 && o.rolling) parts.push(`<path class="trend-roll" d="${mk(rollingMean(s.values, o.rolling))}"><title>${o.rolling}-year rolling mean</title></path>`);
     if (i === 0 && o.highlight != null) {
       const k = years.indexOf(o.highlight);

@@ -17,16 +17,22 @@
   font: inherit; font-size: var(--t-small); background: var(--paper-raised); border: var(--hair); border-radius: 0; padding: 7px 9px; width: 100%; color: var(--ink);
 }
 .ctl select:disabled { color: var(--ink-soft); }
-.ds-tabs { display: grid; grid-template-columns: 1fr 1fr; border: var(--hair); }
-.ds-tab { font-family: var(--f-mono); font-size: var(--t-label); letter-spacing: var(--track-label); text-transform: uppercase; padding: 9px 6px; background: var(--paper-raised); border: 0; cursor: pointer; color: var(--ink); }
-.ds-tab + .ds-tab { border-left: var(--hair); }
-.ds-tab[aria-selected="true"] { background: var(--lens-clm); color: var(--lens-clm-ink); }
-.ds-tab:focus-visible { outline-offset: -4px; }
-.metric-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 1px; border-top: var(--hair-soft); }
-.metric { display: grid; grid-template-columns: 18px 1fr; gap: var(--s-2); align-items: start; padding: 6px 2px; border-bottom: var(--hair-soft); cursor: pointer; font-size: var(--t-small); line-height: 1.35; }
-.metric input { margin: 3px 0 0; accent-color: var(--accent); }
-.metric:has(input:checked) { color: var(--accent); }
-.metric:has(input:checked) .metric-name { font-weight: 600; }
+/* measure search (combobox): the list is always on the page, filtered as you type */
+.msearch { position: relative; }
+.msearch-current { margin: 0; font-size: var(--t-small); line-height: 1.35; }
+.msearch-current strong { color: var(--accent); font-weight: 600; }
+.msearch-current .label { display: block; margin-top: 2px; }
+.msearch-input { font: inherit; font-size: var(--t-small); background: var(--paper-raised); border: var(--hair); border-radius: 0; padding: 8px 9px; width: 100%; color: var(--ink); }
+.msearch-input::placeholder { color: var(--ink-soft); }
+.msearch-list { max-height: 340px; overflow-y: auto; border: var(--hair); border-top: 0; background: var(--paper-raised); }
+.msearch-group[hidden], .msearch-opt[hidden] { display: none; }
+.msearch-grouplabel { margin: 0; padding: 6px 9px 4px; border-bottom: var(--hair-soft); background: var(--tint-eng); position: sticky; top: 0; }
+.msearch-group[data-group="temperature"] .msearch-grouplabel, .msearch-group[data-group="rainfall"] .msearch-grouplabel, .msearch-group[data-group="odf-plus"] .msearch-grouplabel { background: var(--tint-clm); }
+.msearch-opt { padding: 6px 9px; border-bottom: var(--hair-soft); cursor: pointer; font-size: var(--t-small); line-height: 1.35; }
+.msearch-opt:hover, .msearch-opt.is-active { background: var(--ink); color: var(--paper); }
+.msearch-opt[aria-selected="true"] { font-weight: 600; box-shadow: inset 3px 0 0 var(--accent); }
+.msearch-opt mark { background: none; color: inherit; text-decoration: underline; text-decoration-color: var(--accent); text-underline-offset: 2px; }
+.msearch-empty { margin: 0; padding: 9px; font-size: var(--t-small); }
 .ctl-help { max-width: none; border-left: 2px solid var(--accent); padding-left: var(--s-3); font-size: 0.85rem; }
 .ctl-help em { display: block; margin-top: var(--s-2); }
 .seg { display: grid; gap: 2px; }

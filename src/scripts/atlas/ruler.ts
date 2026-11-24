@@ -2,21 +2,26 @@
 // the 35-district average drawn along it as a small ink sparkline.
 // role="slider": arrows ±1, Shift+arrows ±10, Home/End; drag or click anywhere.
 
-export interface Ruler { set(year: number, series: (number | null)[] | null, years: number[], disabled?: boolean): void }
+export interface Ruler { set(year: number, series: (number | null)[] | null, years: number[], disabled?: boolean, label?: (y: number) => string): void }
 
 export function createRuler(root: HTMLElement, onChange: (year: number, scrubbing: boolean) => void): Ruler {
   const svg = root.querySelector<SVGSVGElement>('svg')!;
   const thumb = root.querySelector<HTMLElement>('[role="slider"]')!;
   let years: number[] = [1951, 2024], year = 2024, disabled = false;
+  let label: (y: number) => string = String;
+  // short records (a few financial years, two snapshot dates) label every year
+  const short = () => years.length <= 12;
+  const snap = (y: number) => years.reduce((b, x) => (Math.abs(x - y) < Math.abs(b - y) ? x : b), years[0]);
   const W = 1000, H = 64, L = 8, R = 8;
-  const x = (y: number) => L + ((y - years[0]) / (years[years.length - 1] - years[0] || 1)) * (W - L - R);
+  const x = (y: number) => (years.length === 1 ? W / 2 : L + ((y - years[0]) / (years[years.length - 1] - years[0] || 1)) * (W - L - R));
 
   const draw = (series: (number | null)[] | null) => {
     const parts: string[] = [`<line x1="${L}" x2="${W - R}" y1="${H - 18}" y2="${H - 18}" class="rl-base"/>`];
     for (const y of years) {
-      const big = y % 10 === 0, mid = y % 5 === 0;
+      const big = short() || y % 10 === 0, mid = y % 5 === 0;
       parts.push(`<line x1="${x(y)}" x2="${x(y)}" y1="${H - 18}" y2="${H - 18 - (big ? 12 : mid ? 8 : 4)}" class="rl-tick"/>`);
-      if (big) parts.push(`<text x="${x(y)}" y="${H - 4}" text-anchor="middle" class="rl-label">${y}</text>`);
+      const anchor = years.length === 1 ? 'middle' : y === years[0] && short() ? 'start' : y === years[years.length - 1] && short() ? 'end' : 'middle';
+      if (big) parts.push(`<text x="${x(y)}" y="${H - 4}" text-anchor="${anchor}" class="rl-label">${label(y)}</text>`);
     }
     if (series) {
       const v = series.filter((s): s is number => s != null);
@@ -32,8 +37,8 @@ export function createRuler(root: HTMLElement, onChange: (year: number, scrubbin
     thumb.style.left = `${(x(year) / W) * 100}%`;
     thumb.classList.toggle('is-end', x(year) / W > 0.93);
     thumb.setAttribute('aria-valuenow', String(year));
-    thumb.setAttribute('aria-valuetext', String(year));
-    thumb.querySelector('span')!.textContent = String(year);
+    thumb.setAttribute('aria-valuetext', label(year));
+    thumb.querySelector('span')!.textContent = label(year);
     root.classList.toggle('is-disabled', disabled);
     thumb.setAttribute('aria-disabled', String(disabled));
   };
@@ -42,10 +47,10 @@ export function createRuler(root: HTMLElement, onChange: (year: number, scrubbin
     const r = svg.getBoundingClientRect();
     const t = ((clientX - r.left) / r.width) * W;
     const f = (t - L) / (W - L - R);
-    return Math.round(years[0] + Math.max(0, Math.min(1, f)) * (years[years.length - 1] - years[0]));
+    return snap(years[0] + Math.max(0, Math.min(1, f)) * (years[years.length - 1] - years[0]));
   };
   const commit = (y: number, scrubbing: boolean) => {
-    y = Math.max(years[0], Math.min(years[years.length - 1], y));
+    y = snap(Math.max(years[0], Math.min(years[years.length - 1], y)));
     if (y === year && scrubbing) return;
     year = y; place(); onChange(y, scrubbing);
   };
@@ -62,19 +67,19 @@ export function createRuler(root: HTMLElement, onChange: (year: number, scrubbin
   root.addEventListener('pointercancel', end);
   thumb.addEventListener('keydown', (e) => {
     if (disabled) return;
-    const step = e.shiftKey ? 10 : 1;
-    const map: Record<string, number> = { ArrowLeft: year - step, ArrowDown: year - step, ArrowRight: year + step, ArrowUp: year + step, Home: years[0], End: years[years.length - 1], PageDown: year - 10, PageUp: year + 10 };
+    // arrows step through the years the record has; Shift and Page keys jump ten
+    const i = years.indexOf(year), k = e.shiftKey ? 10 : 1;
+    const at = (j: number) => years[Math.max(0, Math.min(years.length - 1, j))];
+    const map: Record<string, number> = { ArrowLeft: at(i - k), ArrowDown: at(i - k), ArrowRight: at(i + k), ArrowUp: at(i + k), Home: years[0], End: years[years.length - 1], PageDown: at(i - 10), PageUp: at(i + 10) };
     if (e.key in map) { e.preventDefault(); commit(map[e.key], false); }
   });
 
   return {
-    set(y, series, ys, dis = false) {
-      const changed = ys[0] !== years[0] || ys[ys.length - 1] !== years[years.length - 1];
-      years = ys; year = y; disabled = dis;
+    set(y, series, ys, dis = false, lab = String) {
+      years = ys; year = y; disabled = dis || ys.length < 2; label = lab;
       thumb.setAttribute('aria-valuemin', String(ys[0]));
       thumb.setAttribute('aria-valuemax', String(ys[ys.length - 1]));
       draw(series);
-      if (changed) { /* redrawn above */ }
       place();
     },
   };

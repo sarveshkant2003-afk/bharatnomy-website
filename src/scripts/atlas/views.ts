@@ -7,8 +7,12 @@ import type { District } from './data';
 
 const esc = (s: string) => s.replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c] as string));
 
-export function fmtVal(v: number | string | null, m: Metric, s: State, unit: string): string {
-  if (v == null) return 'no data';
+// What a district with no value means differs by record ("no data", "no CEA-listed station").
+let noData = 'no data';
+export const setNoDataLabel = (t: string | undefined) => { noData = t ?? 'no data'; };
+
+export function fmtVal(v: number | string | null | undefined, m: Metric, s: State, unit: string): string {
+  if (v == null) return noData;
   if (typeof v === 'string') return v;
   if (s.view === 'change') return `${signed(v, m.decimals)}${unit === '%' || unit === 'pts' ? ' pts' : unit && unit !== 'SPI' ? ' ' + unit : ''}`;
   const dec = s.view === 'decade' ? Math.max(1, m.decimals) : m.decimals;
@@ -19,7 +23,7 @@ export function fmtVal(v: number | string | null, m: Metric, s: State, unit: str
 /* ------------------------------------------------------------ legend ---- */
 export function renderLegend(el: HTMLElement, title: string, c: Classed, hasNoData: boolean) {
   el.innerHTML = `<p class="label legend-title">${esc(title)}</p><ul class="legend-list">${c.legend
-    .map((e) => `<li><span class="legend-swatch" style="background:${e.color}"></span><span class="mono">${esc(e.label)}</span></li>`).join('')}${hasNoData ? '<li><span class="legend-swatch legend-swatch--nodata"></span><span class="mono">no data</span></li>' : ''}</ul>`;
+    .map((e) => `<li><span class="legend-swatch" style="background:${e.color}"></span><span class="mono">${esc(e.label)}</span></li>`).join('')}${hasNoData ? `<li><span class="legend-swatch legend-swatch--nodata"></span><span class="mono">${esc(noData)}</span></li>` : ''}</ul>`;
 }
 
 /* ------------------------------------------------------- sketch view ---- */
@@ -38,7 +42,7 @@ export function renderSketch(el: HTMLElement, fc: GeoJSON.FeatureCollection, sta
 
 /* -------------------------------------------------------- table view ---- */
 let sortKey: 'rank' | 'name' | 'value' | 'change' = 'rank', sortAsc = true;
-export function renderTable(el: HTMLElement, rows: { lgd: string; name: string; value: number | string | null; change: number | null }[], m: Metric, s: State, unit: string, colors: Record<string, string | null>, baselineLabel: string, onPick: (lgd: string) => void) {
+export function renderTable(el: HTMLElement, rows: { lgd: string; name: string; value: number | string | null; change: number | null }[], m: Metric, s: State, unit: string, colors: Record<string, string | null>, baselineLabel: string | null, onPick: (lgd: string) => void) {
   const num = rows.filter((r) => typeof r.value === 'number') as { value: number }[];
   const maxAbs = Math.max(1e-9, ...num.map((r) => Math.abs(r.value)));
   const ranked = [...rows].sort((a, b) => (typeof b.value === 'number' ? b.value : -Infinity) - (typeof a.value === 'number' ? a.value : -Infinity));
@@ -46,7 +50,7 @@ export function renderTable(el: HTMLElement, rows: { lgd: string; name: string; 
   const key = (r: typeof rows[number]) => sortKey === 'name' ? r.name : sortKey === 'value' ? (typeof r.value === 'number' ? r.value : String(r.value)) : sortKey === 'change' ? (r.change ?? -Infinity) : (rank.get(r.lgd) ?? 999);
   const sorted = [...rows].sort((a, b) => { const x = key(a), y = key(b); return (x < y ? -1 : x > y ? 1 : 0) * (sortAsc ? 1 : -1); });
   const th = (k: typeof sortKey, label: string, cls = '') => `<th scope="col" class="${cls}" ${sortKey === k ? `aria-sort="${sortAsc ? 'ascending' : 'descending'}"` : ''}><button type="button" data-k="${k}">${label}</button></th>`;
-  const showChange = s.view !== 'change' && m.breaks !== 'categorical';
+  const showChange = s.view !== 'change' && m.breaks !== 'categorical' && !!baselineLabel;
   el.innerHTML = `<table class="dense atlas-table"><caption class="visually-hidden">${esc(m.label)}, all districts</caption><thead><tr>${th('rank', 'Rank', 'r')}${th('name', 'District')}${th('value', s.view === 'change' ? 'Change' : 'Value', 'r')}${showChange ? th('change', `vs ${baselineLabel}`, 'r') : ''}<th scope="col">Bar</th></tr></thead><tbody>${sorted.map((r) => {
     const v = r.value;
     const w = typeof v === 'number' ? Math.round((Math.abs(v) / maxAbs) * 100) : 0;

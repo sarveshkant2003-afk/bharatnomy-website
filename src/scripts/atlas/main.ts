@@ -1,9 +1,9 @@
 // Atlas wiring: state → data → map, sketch, table, panel, ruler, URL.
-import { type State, defaults, fromURL, toURL, metricById, metricsOf, datasets, baselineOf } from './state';
-import { type District, type MetricFile, loadMetric, viewValues, scaleFor, baselineMean, decadeLabel } from './data';
+import { type State, defaults, fromURL, toURL, metricById, datasetOf, baselineOf, viewsOf, yearLabel, spanLabel } from './state';
+import { type District, type MetricFile, loadMetric, viewValues, scaleFor, baselineMean, decadeLabel, nearestYear } from './data';
 import { createMap, type AtlasMap } from './map';
 import { createRuler } from './ruler';
-import { renderLegend, renderSketch, renderTable, savePNG, fmtVal } from './views';
+import { renderLegend, renderSketch, renderTable, savePNG, fmtVal, setNoDataLabel, esc } from './views';
 import { renderPanel, periodLabel } from './panel';
 import { u } from '../../lib/url';
 
@@ -34,11 +34,13 @@ let scale: ReturnType<typeof scaleFor>;
 
 /* ---------------------------------------------------------- controls ---- */
 function syncControls() {
-  $$<HTMLButtonElement>('[data-ds]').forEach((b) => { const on = b.dataset.ds === s.dataset; b.setAttribute('aria-selected', String(on)); b.tabIndex = on ? 0 : -1; });
-  $$<HTMLElement>('[data-metric-item]').forEach((li) => { li.hidden = li.dataset.dataset !== s.dataset; });
-  $$<HTMLInputElement>('input[name="metric"]').forEach((i) => { i.checked = i.value === s.metric; });
+  const dsm = datasetOf(s.dataset);
+  $$<HTMLElement>('.msearch-opt').forEach((o) => o.setAttribute('aria-selected', String(o.dataset.metric === s.metric)));
+  $('[data-current]').innerHTML = `<strong>${esc(metricById(s.metric).label)}</strong><span class="label soft">${esc(dsm.tab)} · ${esc(dsm.source)}</span>`;
+  $('[data-caveat]').textContent = dsm.caveat ?? '';
   const cat = metricById(s.metric).breaks === 'categorical';
-  $$<HTMLInputElement>('input[name="view"]').forEach((i) => { i.checked = i.value === s.view; i.disabled = cat && i.value !== 'year'; });
+  const allowed = viewsOf(s.dataset);
+  $$<HTMLInputElement>('input[name="view"]').forEach((i) => { i.checked = i.value === s.view; i.disabled = (cat && i.value !== 'year') || !allowed.includes(i.value as any); });
   $('[data-change-periods]').hidden = s.view !== 'change';
   const [fa, la] = [firstYear(s.dataset), lastYear(s.dataset)];
   $$<HTMLInputElement>('[data-period]').forEach((i) => {
@@ -62,7 +64,11 @@ async function update(opts: { animate?: boolean; panel?: boolean; fade?: number 
   const m = metricById(s.metric);
   f = await loadMetric(s.dataset, s.metric);
   if (ticket !== pending) return;
+  if (!f.years.includes(s.year)) s.year = nearestYear(f, s.year);
+  const yl = (y: number) => yearLabel(s.dataset, y);
+  setNoDataLabel(datasetOf(s.dataset).noData);
   shown = viewValues(f, s);
+  for (const d of districts) if (!(d.lgd in shown)) shown[d.lgd] = null;   // e.g. no station in the district
   scale = scaleFor(f, m, s, shown);
   colors = Object.fromEntries(Object.entries(shown).map(([k, v]) => [k, v == null ? null : scale.color(v as any)]));
   atlas.setColors(colors, reduce ? 0 : opts.fade ?? (opts.animate ? 350 : 0));
@@ -73,10 +79,11 @@ async function update(opts: { animate?: boolean; panel?: boolean; fade?: number 
   $('[data-map-period]').textContent = s.view === 'decade' ? `${decadeLabel(s.year, f)} average` : period;
   const legendTitle = `${s.view === 'change' ? 'Change' : m.short}${scale.unit && scale.unit !== 'SPI' ? ' · ' + scale.unit.toUpperCase() : ''}`;
   renderLegend($('[data-legend]'), legendTitle, scale, Object.values(colors).some((c) => c == null));
-  const ds = datasets.find((d) => d.slug === s.dataset)!;
-  const source = `${ds.source}, ${f.years[0]}–${f.years[f.years.length - 1]} · district indices computed by Bharatnomy`;
+  const ds = datasetOf(s.dataset);
+  const span = spanLabel(s.dataset, f.years[0], f.years[f.years.length - 1]);
+  const source = `${ds.source}, ${span} · ${ds.computed}`;
   $('[data-source]').innerHTML = `SOURCE: ${source.toUpperCase()} · ${m.label.toUpperCase()} · ${period.toUpperCase()} · <a href="${u(`/datasets/${s.dataset}`)}">DATASET</a>`;
-  ruler.set(s.year, f.state_mean, f.years, s.view === 'change');
+  ruler.set(s.year, f.state_mean, f.years, s.view === 'change', yl);
 
   // views
   const showSketch = s.sketch && !s.table;
@@ -89,7 +96,7 @@ async function update(opts: { animate?: boolean; panel?: boolean; fade?: number 
     const b = s.view !== 'change' && typeof v === 'number' ? baselineMean(f, d.lgd, s.dataset) : null;
     return { lgd: d.lgd, name: d.name, value: v, change: b == null || typeof v !== 'number' ? null : v - b };
   });
-  const bl = baselineOf(s.dataset).join('–');
+  const bl = baselineOf(s.dataset)?.join('–') ?? null;
   if (s.table) renderTable($('[data-table]'), rows, m, s, scale.unit, colors, bl, select);
   if (root.dataset.tab === 'table') renderTable($('[data-table-m]'), rows, m, s, scale.unit, colors, bl, select);
   if (!s.table && !showSketch) requestAnimationFrame(() => atlas.resize());
@@ -124,23 +131,68 @@ function select(lgd: string | null) {
 }
 
 /* ------------------------------------------------------------ events ---- */
-$$<HTMLButtonElement>('[data-ds]').forEach((b) => {
-  b.addEventListener('click', () => {
-    if (b.dataset.ds === s.dataset) return;
-    const keep = { district: s.district, compare: s.compare, view: s.view, year: s.year, sketch: s.sketch, table: s.table, classes: s.classes };
-    s = { ...defaults(b.dataset.ds!, lastYear(b.dataset.ds!)), ...keep };
-    s.year = Math.min(s.year, lastYear(s.dataset));
-    commit({ animate: true });
+/* ---------------------------------------------------- measure search ---- */
+// A combobox over every measure of every dataset. Choosing one from another
+// dataset switches the dataset too, keeping district, compare and view settings.
+function chooseMetric(id: string, ds: string) {
+  if (ds !== s.dataset) {
+    const keep = { district: s.district, compare: s.compare, year: s.year, sketch: s.sketch, table: s.table, classes: s.classes };
+    const view = viewsOf(ds).includes(s.view) ? s.view : 'year';
+    s = { ...defaults(ds, lastYear(ds)), ...keep, view };
+    s.year = Math.min(s.year, lastYear(ds));
+  }
+  s.metric = id;
+  if (metricById(id).breaks === 'categorical') s.view = 'year';
+  commit({ animate: true });
+}
+{
+  const input = $<HTMLInputElement>('#measure-q');
+  const list = $('#measure-list');
+  const opts = $$<HTMLElement>('.msearch-opt');
+  const groups = $$<HTMLElement>('.msearch-group');
+  const empty = $('[data-msearch-empty]');
+  let active = -1;
+  const visible = () => opts.filter((o) => !o.hidden);
+  const setActive = (i: number) => {
+    const v = visible();
+    opts.forEach((o) => o.classList.remove('is-active'));
+    active = v.length ? (i + v.length) % v.length : -1;
+    if (active < 0) { input.removeAttribute('aria-activedescendant'); return; }
+    v[active].classList.add('is-active');
+    input.setAttribute('aria-activedescendant', v[active].id);
+    v[active].scrollIntoView({ block: 'nearest' });
+  };
+  const filter = () => {
+    // every typed word must start a word of the measure's terms ("ash" finds ash, not dashboard)
+    const words = input.value.toLowerCase().replace(/[^a-z0-9]+/g, ' ').split(' ').filter(Boolean);
+    for (const o of opts) o.hidden = !words.every((w) => o.dataset.terms!.includes(' ' + w));
+    for (const g of groups) g.hidden = !g.querySelector('.msearch-opt:not([hidden])');
+    empty.hidden = visible().length > 0;
+    // with no query, start on the current measure; otherwise on the first match
+    const cur = visible().findIndex((o) => o.dataset.metric === s.metric);
+    setActive(words.length || cur < 0 ? 0 : cur);
+  };
+  const open = () => { if (!list.hidden) return; list.hidden = false; input.setAttribute('aria-expanded', 'true'); filter(); };
+  const close = () => { list.hidden = true; input.setAttribute('aria-expanded', 'false'); input.removeAttribute('aria-activedescendant'); opts.forEach((o) => o.classList.remove('is-active')); };
+  const pickOpt = (o: HTMLElement | undefined) => { if (!o) return; close(); input.value = ''; chooseMetric(o.dataset.metric!, o.dataset.dataset!); };
+  input.addEventListener('focus', open);
+  input.addEventListener('click', open);
+  input.addEventListener('input', () => { open(); filter(); });
+  input.addEventListener('keydown', (e) => {
+    if (e.key === 'ArrowDown') { e.preventDefault(); if (list.hidden) open(); else setActive(active + 1); }
+    else if (e.key === 'ArrowUp') { e.preventDefault(); if (list.hidden) open(); else setActive(active - 1); }
+    else if (e.key === 'Enter') { if (!list.hidden) { e.preventDefault(); pickOpt(visible()[active]); } }
+    else if (e.key === 'Escape') { if (!list.hidden) { e.preventDefault(); e.stopPropagation(); close(); } else input.value = ''; }
+    else if (e.key === 'Tab') close();
   });
-  b.addEventListener('keydown', (e) => {
-    if (e.key !== 'ArrowRight' && e.key !== 'ArrowLeft') return;
-    const tabs = $$<HTMLButtonElement>('[data-ds]'); const i = tabs.indexOf(b);
-    const n = tabs[(i + (e.key === 'ArrowRight' ? 1 : -1) + tabs.length) % tabs.length]; n.focus(); n.click();
-  });
-});
+  // mousedown keeps focus in the input, so the list does not close before the click lands
+  list.addEventListener('mousedown', (e) => e.preventDefault());
+  list.addEventListener('click', (e) => pickOpt((e.target as HTMLElement).closest<HTMLElement>('.msearch-opt') ?? undefined));
+  input.addEventListener('blur', () => setTimeout(close, 120));
+}
+
 root.addEventListener('change', (e) => {
   const t = e.target as HTMLInputElement;
-  if (t.name === 'metric') { s.metric = t.value; if (metricById(s.metric).breaks === 'categorical') s.view = 'year'; commit({ animate: true }); }
   if (t.name === 'view') { s.view = t.value as State['view']; commit({ animate: true }); }
   if (t.name === 'classes') { s.classes = t.value as State['classes']; commit({ animate: true }); }
   if (t.dataset.period) {
@@ -187,13 +239,15 @@ const stopPlay = () => { clearInterval(timer); timer = 0; $('[data-ruler]').clas
 play.addEventListener('click', () => {
   if (timer) return stopPlay();
   if (s.view === 'change') return;
+  if (!f || f.years.length < 2) return;
   if (s.year >= lastYear(s.dataset)) s.year = firstYear(s.dataset);
   play.setAttribute('aria-pressed', 'true'); play.querySelector('span')!.textContent = 'Pause';
   $('[data-ruler]').classList.add('is-playing');
   // one year about every 0.9 s; colours crossfade over most of each step so it reads as a glide
   timer = window.setInterval(() => {
-    if (s.year >= lastYear(s.dataset)) return stopPlay();
-    s.year++; update({ panel: !!s.district, fade: reduce ? 0 : PLAY_FADE });
+    const next = f.years.find((y) => y > s.year);
+    if (next == null) return stopPlay();
+    s.year = next; update({ panel: !!s.district, fade: reduce ? 0 : PLAY_FADE });
   }, PLAY_STEP);
 });
 

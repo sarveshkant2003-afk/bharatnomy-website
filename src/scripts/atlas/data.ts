@@ -4,7 +4,7 @@ import { u } from '../../lib/url';
 import { type Metric, type State, baselineOf } from './state';
 
 export interface MetricFile {
-  metric: string; unit: string; years: number[];
+  metric: string; dataset: string; unit: string; years: number[];
   values: Record<string, (number | string | null)[]>;
   state_mean: (number | null)[] | null; domain: (number | string)[]; source: string;
 }
@@ -18,7 +18,7 @@ export function loadMetric(ds: string, id: string): Promise<MetricFile> {
 }
 
 const mean = (xs: (number | null)[]) => { const v = xs.filter((x): x is number => typeof x === 'number'); return v.length ? v.reduce((a, b) => a + b, 0) / v.length : null; };
-const between = (f: MetricFile, lgd: string, a: number, b: number) => mean(f.years.map((y, i) => (y >= a && y <= b ? (f.values[lgd][i] as number) : null)));
+const between = (f: MetricFile, lgd: string, a: number, b: number) => mean(f.years.map((y, i) => (y >= a && y <= b ? (f.values[lgd]?.[i] as number) : null)));
 
 export function decadeOf(year: number, f: MetricFile): [number, number] {
   const s = Math.floor(year / 10) * 10;
@@ -42,15 +42,22 @@ export function viewValues(f: MetricFile, s: State): Record<string, number | str
 }
 
 export function baselineMean(f: MetricFile, lgd: string, ds: string) {
-  const [a, b] = baselineOf(ds);
-  return between(f, lgd, a, b);
+  const bl = baselineOf(ds);
+  return bl ? between(f, lgd, bl[0], bl[1]) : null;
+}
+
+/** The record's year nearest to y (records with gaps, e.g. two snapshot dates). */
+export function nearestYear(f: MetricFile, y: number): number {
+  return f.years.reduce((best, x) => (Math.abs(x - y) < Math.abs(best - y) ? x : best), f.years[0]);
 }
 
 /** Colour classes. Year/decade use every value in the record, so colours mean
  *  the same thing in every year; change is symmetric around zero. */
 export function scaleFor(f: MetricFile, m: Metric, s: State, shown: Record<string, number | string | null>): Classed & { unit: string } {
   if (s.view === 'change') {
-    const kind = m.dataset === 'temperature' ? 'anomaly' : m.id === 'monsoon_longest_dry_spell_days' ? 'wetdry_rev' : 'wetdry';
+    // red = more heat or more CO2; teal = wetter or more villages covered
+    const kind = m.dataset === 'rainfall' ? (m.id === 'monsoon_longest_dry_spell_days' ? 'wetdry_rev' : 'wetdry')
+      : m.dataset === 'odf-plus' || m.id.startsWith('ash_utilization') ? 'wetdry' : 'anomaly';
     const unit = m.unit === '%' ? 'pts' : m.unit;
     return { ...classify({ kind: kind as any, breaks: 'diverging-symmetric', values: Object.values(shown) as number[], decimals: m.decimals, unit }), unit };
   }

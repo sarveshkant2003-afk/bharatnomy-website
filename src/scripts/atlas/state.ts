@@ -5,7 +5,7 @@ import { DATASETS } from '../../config/data.mjs';
 export type View = 'year' | 'decade' | 'change';
 export interface Metric {
   id: string; dataset: string; label: string; short: string; unit: string; scale: string; breaks: string;
-  help: string; caveat?: string; fixed?: number[]; categories?: string[]; decimals: number; higherIs?: string; lowerIs?: string;
+  help: string; caveat?: string; fixed?: number[]; categories?: string[]; decimals: number; higherIs?: string; lowerIs?: string; keywords?: string;
 }
 export interface State {
   dataset: string; metric: string; view: View; year: number;
@@ -15,16 +15,29 @@ export interface State {
 }
 
 export const metrics = METRICS as Metric[];
-export const datasets = DATASETS;
+export const datasets = DATASETS as any[];
 export const metricById = (id: string) => metrics.find((m) => m.id === id)!;
 export const metricsOf = (ds: string) => metrics.filter((m) => m.dataset === ds);
-export const baselineOf = (ds: string): [number, number] => (ds === 'temperature' ? [1991, 2020] : [1971, 2020]);
+export const datasetOf = (ds: string) => datasets.find((d) => d.slug === ds)!;
+/** Normal period for trend bands and "vs normal", or null when the record has none. */
+export const baselineOf = (ds: string): [number, number] | null => datasetOf(ds).baseline ?? null;
+export const viewsOf = (ds: string): View[] => datasetOf(ds).views ?? ['year', 'decade', 'change'];
+/** "1951–2024", or "2017-18 to 2025-26" when the labels carry their own hyphens. */
+export function spanLabel(ds: string, a: number, b: number): string {
+  const x = yearLabel(ds, a), y = yearLabel(ds, b);
+  return a === b ? x : x.includes('-') || x.includes(' ') ? `${x} to ${y}` : `${x}–${y}`;
+}
+/** Display label for a year: "2017-18" for financial years, "24 Nov 2026" for snapshot dates. */
+export function yearLabel(ds: string, y: number): string {
+  const d = datasetOf(ds);
+  return d.yearLabels?.[y] ?? (d.time === 'fy' ? `${y}-${String(y + 1).slice(2)}` : String(y));
+}
 
 export function defaults(ds = 'temperature', lastYear = 2024): State {
-  const d = datasets.find((x) => x.slug === ds)!;
+  const d = datasetOf(ds);
   return {
     dataset: ds, metric: d.defaultMetric, view: 'year', year: lastYear,
-    a: [1961, 1990], b: [lastYear - 29, lastYear],
+    a: [...(d.periods?.a ?? [1961, 1990])] as [number, number], b: [...(d.periods?.b ?? [lastYear - 29, lastYear])] as [number, number],
     district: null, compare: [], classes: 'quantile', sketch: false, table: false,
   };
 }
@@ -42,10 +55,10 @@ export function fromURL(lastYearOf: (ds: string) => number, districts: Set<strin
   const m = q.get('metric');
   if (m && metricsOf(ds).some((x) => x.id === m)) s.metric = m;
   const v = q.get('view');
-  if (v === 'year' || v === 'decade' || v === 'change') s.view = v;
+  if ((v === 'year' || v === 'decade' || v === 'change') && viewsOf(ds).includes(v)) s.view = v;
   if (metricById(s.metric).breaks === 'categorical') s.view = 'year';
   const y = Number(q.get('year'));
-  if (y >= 1951 && y <= lastYearOf(ds)) s.year = y;
+  if (y >= 1900 && y <= lastYearOf(ds)) s.year = y;   // snapped to a year the record has once its file loads
   s.a = period(q.get('a')) ?? s.a;
   s.b = period(q.get('b')) ?? s.b;
   const d = q.get('district');

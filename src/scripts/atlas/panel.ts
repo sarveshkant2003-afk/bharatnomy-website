@@ -2,19 +2,25 @@
 import { renderTrend } from '../../lib/trend';
 import { ordinal } from '../../lib/format';
 import { STOPS } from '../../lib/scales';
-import { type Metric, type State, metricById, baselineOf, datasets } from './state';
+import { type Metric, type State, metricById, metricsOf, baselineOf, datasetOf, yearLabel, spanLabel } from './state';
+import { FOLD } from '../../config/data.mjs';
 import { type MetricFile, type District, loadMetric, viewValues, decadeLabel } from './data';
 import { fmtVal, esc } from './views';
 import { u } from '../../lib/url';
 
+// Related readings shown under the active measure; other records show their other measures.
 const RELATED: Record<string, string[]> = {
   temperature: ['tmax_highest_c', 'days_tmax_40c_or_more', 'tmax_mean_anomaly_c'],
   rainfall: ['rainfall_jun_sep_mm', 'rainfall_jun_sep_departure_pct', 'rx1day_mm'],
 };
+const relatedOf = (ds: string) => RELATED[ds] ?? metricsOf(ds).map((x) => x.id);
 export const DASHES = ['', '6 3', '2 3', '9 3 2 3'];
 
 export function periodLabel(f: MetricFile, s: State) {
-  return s.view === 'year' ? String(s.year) : s.view === 'decade' ? decadeLabel(s.year, f) : `${s.b[0]}–${s.b[1]} vs ${s.a[0]}–${s.a[1]}`;
+  const ds = f.dataset;
+  const yl = (y: number) => (ds ? yearLabel(ds, y) : String(y));
+  const span = (p: [number, number]) => (ds ? spanLabel(ds, p[0], p[1]) : `${p[0]}–${p[1]}`);
+  return s.view === 'year' ? yl(s.year) : s.view === 'decade' ? decadeLabel(s.year, f) : `${span(s.b)} vs ${span(s.a)}`;
 }
 
 export async function renderPanel(el: HTMLElement, ctx: {
@@ -24,7 +30,7 @@ export async function renderPanel(el: HTMLElement, ctx: {
 }) {
   const { s, m, f, unit, shown, byLgd } = ctx;
   if (!s.district) {
-    el.innerHTML = `<div class="panel-empty"><p class="t-lead">Select a district on the map, or search for one.</p><p class="soft">Each district panel shows the readings for the period on the map, its rank among ${ctx.districts.length}, and its full record since ${f.years[0]}.</p></div>`;
+    el.innerHTML = `<div class="panel-empty"><p class="t-lead">Select a district on the map, or search for one.</p><p class="soft">Each district panel shows the readings for the period on the map, its rank among ${ctx.districts.length}, and its full record${f.years.length > 1 ? ` since ${esc(yearLabel(m.dataset, f.years[0]))}` : ''}.</p></div>`;
     return;
   }
   const d = byLgd[s.district];
@@ -40,7 +46,7 @@ export async function renderPanel(el: HTMLElement, ctx: {
   // readings: the active metric plus related ones (same period)
   const rows: { label: string; value: string; note?: string }[] = [{ label: m.short, value: fmtVal(v, m, s, unit), note: rankLine.toUpperCase() }];
   if (s.view !== 'change') {
-    for (const id of RELATED[m.dataset].filter((x) => x !== m.id).slice(0, 3)) {
+    for (const id of relatedOf(m.dataset).filter((x) => x !== m.id).slice(0, 3)) {
       const rm = metricById(id);
       try {
         const rf = await loadMetric(m.dataset, id);
@@ -58,14 +64,17 @@ export async function renderPanel(el: HTMLElement, ctx: {
       const c = f.values[s.district!][i] as string | null;
       return `<span title="${y}: ${c ?? 'no data'}" style="background:${c ? stops[cats.indexOf(c)] : 'transparent'}"${y === s.year ? ' class="is-year"' : ''}></span>`;
     }).join('')}</div><p class="label soft cat-axis"><span>${f.years[0]}</span><span>${f.years[f.years.length - 1]}</span></p>`;
+  } else if (f.years.length < 2) {
+    chart = `<p class="soft">One year only (${esc(yearLabel(m.dataset, f.years[0]))}), so there is no trend to draw. Compare districts with the rank above or the table view.</p>`;
   } else {
     const ids = [s.district, ...s.compare];
     const dark = m.scale === 'wet' || m.scale === 'wetdry' ? STOPS.wet : m.scale === 'dry' ? STOPS.dry : STOPS.warm;
-    const series = ids.map((id, i) => ({ label: byLgd[id].name, values: f.values[id] as number[], style: (i === 0 ? 'ink' : 'ink') as 'ink', dash: DASHES[i] || undefined, color: i === 0 ? undefined : dark[4 - (i - 1)] }));
+    const series = ids.map((id, i) => ({ label: byLgd[id].name, values: (f.values[id] ?? f.years.map(() => null)) as number[], style: (i === 0 ? 'ink' : 'ink') as 'ink', dash: DASHES[i] || undefined, color: i === 0 ? undefined : dark[4 - (i - 1)] }));
     chart = renderTrend({
       years: f.years, series, width: 440, height: 200, unit, decimals: m.decimals,
-      baseline: baselineOf(m.dataset), highlight: s.view === 'year' ? s.year : undefined,
-      rolling: ids.length === 1 ? 10 : undefined, zeroLine: m.breaks !== 'quantile',
+      baseline: baselineOf(m.dataset) ?? undefined, highlight: s.view === 'year' ? s.year : undefined,
+      rolling: ids.length === 1 && f.years.length >= 30 ? 10 : undefined, zeroLine: m.breaks !== 'quantile',
+      xLabel: (y: number) => yearLabel(m.dataset, y),
       title: `${m.label}, ${ids.map((i) => byLgd[i].name).join(', ')}`,
     });
   }
@@ -83,10 +92,10 @@ export async function renderPanel(el: HTMLElement, ctx: {
       <dl class="panel-rows">${rows.map((r) => `<div class="panel-row"><dt class="label soft">${esc(r.label)}</dt><dd class="panel-val num">${esc(r.value)}${r.note ? `<span class="label soft panel-note">${esc(r.note)}</span>` : ''}</dd></div>`).join('')}</dl>
     </section>
     <figure class="dp-trend">
-      <p class="label">${esc(m.short)} · ${f.years[0]}–${f.years[f.years.length - 1]}</p>
+      <p class="label">${esc(m.short)} · ${esc(spanLabel(m.dataset, f.years[0], f.years[f.years.length - 1]))}</p>
       ${chart}
       <ul class="dp-key mono">${key}</ul>
-      <figcaption class="source label">SOURCE: ${esc(ctx.source.toUpperCase())}${m.breaks !== 'categorical' ? ` · SHADED BAND = ${baselineOf(m.dataset).join('–')} NORMAL${s.compare.length ? '' : ' · BLUE = 10-YEAR ROLLING MEAN'}` : ''}</figcaption>
+      <figcaption class="source label">SOURCE: ${esc(ctx.source.toUpperCase())}${m.breaks !== 'categorical' && baselineOf(m.dataset) ? ` · SHADED BAND = ${baselineOf(m.dataset)!.join('–')} NORMAL${s.compare.length ? '' : ' · BLUE = 10-YEAR ROLLING MEAN'}` : ''}</figcaption>
     </figure>
     <div class="dp-compare">
       <label class="label" for="dp-add">Compare with (up to 3)</label>
@@ -100,16 +109,30 @@ export async function renderPanel(el: HTMLElement, ctx: {
   el.querySelector<HTMLButtonElement>('[data-dl]')!.addEventListener('click', () => downloadDistrict(m.dataset, s.district!, d.name));
 }
 
+/** Split one CSV line, respecting quoted fields (station names can hold commas). */
+function splitCsv(line: string): string[] {
+  const out: string[] = []; let cur = '', q = false;
+  for (let i = 0; i < line.length; i++) {
+    const c = line[i];
+    if (q) { if (c === '"' && line[i + 1] === '"') { cur += '"'; i++; } else if (c === '"') q = false; else cur += c; }
+    else if (c === '"') q = true; else if (c === ',') { out.push(cur); cur = ''; } else cur += c;
+  }
+  out.push(cur);
+  return out;
+}
+
 const csvCache = new Map<string, Promise<string>>();
 async function downloadDistrict(ds: string, lgd: string, name: string) {
-  const meta = datasets.find((x) => x.slug === ds)!;
+  const meta = datasetOf(ds);
   const url = u(`/data/${ds}/${meta.folder}.csv`);
   if (!csvCache.has(url)) csvCache.set(url, fetch(url).then((r) => r.text()));
   const text = await csvCache.get(url)!;
   const lines = text.split(/\r?\n/);
-  const head = lines[0].split(',');
+  const head = splitCsv(lines[0]);
   const col = head.indexOf('lgd_district_code');
-  const rows = lines.slice(1).filter((l) => l && l.split(',')[col] === lgd);
+  // rows of districts pooled into this one on the 2011 map (Palghar into Thane) come along
+  const codes = new Set([lgd, ...Object.entries(FOLD as Record<string, string>).filter(([, to]) => to === lgd).map(([from]) => from)]);
+  const rows = lines.slice(1).filter((l) => l && codes.has(splitCsv(l)[col]));
   const blob = new Blob([[lines[0], ...rows].join('\n') + '\n'], { type: 'text/csv' });
   const a = document.createElement('a');
   a.href = URL.createObjectURL(blob);

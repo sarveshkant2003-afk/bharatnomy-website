@@ -244,6 +244,7 @@
 .trend-hl { stroke: var(--accent); stroke-width: 1; stroke-dasharray: 2 2; }
 .trend-hllabel { font-family: var(--f-mono); font-size: 10px; fill: var(--accent); font-weight: 500; }
 .trend-dot { fill: var(--paper-raised); stroke: var(--accent); stroke-width: 2; }
+.trend-pt { fill: var(--ink); }
 
 .source { color: var(--ink-soft); margin-top: var(--s-2); font-size: 0.66rem; line-height: 1.5; text-transform: uppercase; }
 .source a { color: var(--accent); }

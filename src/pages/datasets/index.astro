@@ -6,18 +6,21 @@ import StickerLabel from '../../components/StickerLabel.astro';
 import SpecimenTag from '../../components/SpecimenTag.astro';
 import InstrumentPanel from '../../components/InstrumentPanel.astro';
 import MarginNote from '../../components/MarginNote.astro';
-import { stats } from '../../lib/data';
+import { stats, spanOf } from '../../lib/data';
+import { chicago } from '../../lib/cite';
 import { stampDate } from '../../lib/format';
 import '../../styles/pages.css';
 
 const s = stats();
+const ex = s.datasets[0];
+const example = chicago({ title: ex.title, place: 'Maharashtra', span: spanOf(ex), code: ex.code, version: s.data.short, released: s.data.date, url: `https://bharatnomy.com/datasets/${ex.slug}`, agency: ex.agency });
 const planned = [
   { title: 'Original survey data', note: 'Collected directly, for questions where existing data does not go deep enough.' },
   { title: 'Cleaned government data', note: 'Numbers that already exist, made usable: the unglamorous work of normalising formats across sources.' },
   { title: 'Proprietary indices', note: 'Composite measures we build ourselves, when no existing metric captures what we think matters.' },
 ];
 ---
-<Notebook title="Datasets" description="Cleaned, documented and free district-level datasets on India, starting with temperature and rainfall for Maharashtra." code="BN-DATA">
+<Notebook title="Datasets" description="Cleaned, documented and free district-level datasets on India: climate, power stations, fly ash and Swachh Bharat sanitation for Maharashtra." code="BN-DATA">
   <div class="dsx">
     <header class="sheet dsx-head bleed bleed-clm">
       <h1 class="display t-xl dsx-title">Datasets</h1>
@@ -39,7 +42,8 @@ const planned = [
     <section class="sheet dsx-table-sec" aria-labelledby="dsx-table-h">
       <div class="dsx-table-head">
         <h2 id="dsx-table-h" class="display t-m">All datasets, as a table</h2>
-        <p class="soft">CSV and JSON. Source and collection-date metadata in every release. Licence: CC BY 4.0. Cite as: Bharatnomy (2026), [dataset name].</p>
+        <p class="soft">CSV and JSON. Source and collection-date metadata in every release. Licence: CC BY 4.0. Cite in Chicago style; each dataset page gives the reference-list entry, the footnote and the bibliography entry. For example:</p>
+        <p class="cite mono dsx-cite">{example.reference}</p>
       </div>
       <div class="table-wrap">
         <table class="dense" data-sortable>
@@ -60,10 +64,10 @@ const planned = [
                 <td><a href={u(`/datasets/${d.slug}`)}>{d.title}</a><span class="mono soft dense-code">{d.code}</span></td>
                 <td>{d.lens}</td>
                 <td>Maharashtra · {d.districts} districts</td>
-                <td data-value={d.first_year} class="num">{d.first_year}–{d.last_year}</td>
+                <td data-value={d.first_year} class="num">{spanOf(d)}</td>
                 <td class="num r" data-value={d.rows}>{d.rows.toLocaleString('en-IN')}</td>
                 <td class="num">{stampDate(s.data.date)}</td>
-                <td><a href={u(`/data/${d.slug}/${d.folder}.csv`)} download>CSV</a> · <a href={u(`/data/${d.slug}/${d.folder}.json`)} download>JSON</a></td>
+                <td><a href={u(`/data/${d.slug}/${d.folder}.csv`)} download>CSV</a> · <a href={u(`/data/${d.slug}/${d.folder}.json`)} download>JSON</a>{d.totals_kb != null && <> · <a href={u(`/data/${d.slug}/${d.folder}_district-totals.csv`)} download>District totals</a></>}</td>
               </tr>
             ))}
           </tbody>

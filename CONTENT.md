@@ -70,7 +70,7 @@ Structure and scroll behaviour are in SCROLL.md. Copy by chapter:
 
 ### Chapter V · Open the notebook (datasets)
 - Title: **Take the data with you.**
-- Body: Our first two datasets are live: district-level temperature and rainfall for Maharashtra, every year since 1951. CSV and JSON, with sources and methods attached.
+- Body: Our first {n} datasets are live for Maharashtra's districts: temperature and rainfall every year since 1951, power station generation and CO2, fly ash from coal plants, and Swachh Bharat sanitation. CSV and JSON, with sources and methods attached. ({n} is computed from the data build.)
 - Two SpecimenTags (content from MAP.md dataset metadata).
 - Link: All datasets (→ /datasets)
 

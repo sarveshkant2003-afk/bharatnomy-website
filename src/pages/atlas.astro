@@ -14,13 +14,13 @@ import '../styles/atlas.css';
 const s = stats();
 const ds = districts();
 ---
-<Notebook title="Atlas" description="District-level climate records for Maharashtra: pick a measure, move through the years, open any district." code="BN-DASH" coords={coords(s.state_centroid[0], s.state_centroid[1])} coordsLabel="STATE 01 · MAHARASHTRA" bodyClass="atlas-page">
+<Notebook title="Atlas" description="District-level climate, energy and sanitation records for Maharashtra: search for a measure, move through the years, open any district." code="BN-DASH" coords={coords(s.state_centroid[0], s.state_centroid[1])} coordsLabel="STATE 01 · MAHARASHTRA" bodyClass="atlas-page">
   <div class="atlas" data-atlas data-tab="measure">
     <header class="atlas-head bleed bleed-clm">
       <h1 class="display t-mega atlas-title">ATLAS</h1>
       <div class="atlas-intro">
         <StickerLabel text="BN-DASH · MAHARASHTRA · DISTRICTS" tone="ink" seed="atlas" />
-        <p class="t-lead">District-level climate records for Maharashtra. Pick a measure, move through the years, open any district.</p>
+        <p class="t-lead">District-level climate, energy and sanitation records for Maharashtra. Search for a measure, move through the years, open any district.</p>
         <p class="soft atlas-india">India, state by state: Maharashtra is the first state in the Atlas. More states join as their data clears our verification standard.</p>
       </div>
     </header>
@@ -35,26 +35,26 @@ const ds = districts();
           <select id="atlas-state" disabled><option>Maharashtra</option></select>
         </div>
 
-        <div class="ctl">
-          <p class="label" id="ds-label">Dataset</p>
-          <div class="ds-tabs" role="tablist" aria-labelledby="ds-label">
-            {DATASETS.map((d) => <button type="button" role="tab" class="ds-tab" data-ds={d.slug} aria-selected="false">{d.slug === 'temperature' ? 'Temperature' : 'Rainfall'}</button>)}
-          </div>
-        </div>
-
-        <fieldset class="ctl">
-          <legend class="label">Measure</legend>
-          <ul class="metric-list">
-            {METRICS.map((m) => (
-              <li data-metric-item data-dataset={m.dataset} hidden={m.dataset !== 'temperature'}>
-                <label class="metric">
-                  <input type="radio" name="metric" value={m.id} />
-                  <span class="metric-name">{m.label}</span>
-                </label>
-              </li>
+        <div class="ctl msearch" data-msearch>
+          <label class="label" for="measure-q">Measure</label>
+          <p class="msearch-current" data-current aria-live="polite"></p>
+          <input id="measure-q" class="msearch-input" type="text" role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="measure-list" aria-describedby="measure-hint" autocomplete="off" spellcheck="false" placeholder="Search: heat, monsoon, CO2, ash, ODF" />
+          <div id="measure-list" class="msearch-list" role="listbox" aria-label="Measures" hidden>
+            {DATASETS.map((d: any) => (
+              <div role="group" class="msearch-group" data-group={d.slug} aria-labelledby={`mgrp-${d.slug}`}>
+                <p class="label msearch-grouplabel" id={`mgrp-${d.slug}`} role="presentation">{d.tab}</p>
+                {METRICS.filter((m) => m.dataset === d.slug).map((m) => (
+                  <div role="option" id={`mopt-${m.id}`} class="msearch-opt" aria-selected="false" data-metric={m.id} data-dataset={d.slug}
+                    data-terms={' ' + [m.label, m.short, m.help, m.keywords ?? '', d.tab, d.title, d.keywords ?? ''].join(' ').toLowerCase().replace(/[^a-z0-9]+/g, ' ')}>
+                    <span class="msearch-name">{m.label}</span>
+                  </div>
+                ))}
+              </div>
             ))}
-          </ul>
-        </fieldset>
+            <p class="msearch-empty soft" data-msearch-empty hidden>No measure matches. Try heat, rain, CO2, ash or ODF.</p>
+          </div>
+          <p class="soft small" id="measure-hint">{METRICS.length} measures in {DATASETS.length} datasets. Type to search, use the arrow keys to move through the list, Enter to choose.</p>
+        </div>
         <aside class="mnote ctl-help" data-help aria-live="polite"></aside>
 
         <fieldset class="ctl">
@@ -97,7 +97,7 @@ const ds = districts();
           <div class="atlas-tip label" data-tip hidden></div>
           <figure class="legend atlas-legend" data-legend></figure>
         </div>
-        <aside class="mnote atlas-caveat"><span class="label mnote-label">Read with care</span>Figures are district averages of IMD's gridded data on 2011 boundaries. They are best compared across years and districts, not with a single weather station. Thane includes today's Palghar.</aside>
+        <aside class="mnote atlas-caveat"><span class="label mnote-label">Read with care</span><span data-caveat>{(DATASETS as any[])[0].caveat}</span></aside>
         <p class="source label" data-source></p>
         <p class="visually-hidden" aria-live="polite" data-sr></p>
       </section>
