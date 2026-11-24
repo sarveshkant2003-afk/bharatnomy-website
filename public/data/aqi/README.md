@@ -11,10 +11,10 @@ Per Maharashtra district and year: how many city-days the CPCB daily AQI bulleti
 ## Source
 
 - **Data:** Central Pollution Control Board (CPCB), National Air Quality Index daily bulletins (4 pm)
-- **Built from:** [`ENV_aqi-daily_2015-to-2026_STATES_CPCB_CITY`](https://github.com/sarveshkant2003-afk/bharatnomy-data/tree/41650b8bb1975a4f4e082ba172d8b5dfb8f7db8a/ENV_aqi-daily_2015-to-2026_STATES_CPCB_CITY/) and the city-to-district lookup [`_reference/aqi-cities-maharashtra.csv`](https://github.com/sarveshkant2003-afk/bharatnomy-data/tree/41650b8bb1975a4f4e082ba172d8b5dfb8f7db8a/_reference/aqi-cities-maharashtra.csv)
+- **Built from:** [`ENV_aqi-daily_2015-to-2026_STATES_CPCB_CITY`](https://github.com/sarveshkant2003-afk/bharatnomy-data/tree/ff7d662c4206e81ed483c708cd23a4ab4c946d2c/ENV_aqi-daily_2015-to-2026_STATES_CPCB_CITY/) and the city-to-district lookup [`_reference/aqi-cities-maharashtra.csv`](https://github.com/sarveshkant2003-afk/bharatnomy-data/tree/ff7d662c4206e81ed483c708cd23a4ab4c946d2c/_reference/aqi-cities-maharashtra.csv)
 - **Link:** https://cpcb.nic.in/AQI_Bulletin.php
 - **Downloaded:** 28 Oct 2026 (bulletins); counted 24 Nov 2026
-- **Script:** [`pipelines/cpcb-aqi/build_aqi_days_district_mh.py`](https://github.com/sarveshkant2003-afk/bharatnomy-data/tree/41650b8bb1975a4f4e082ba172d8b5dfb8f7db8a/pipelines/cpcb-aqi/build_aqi_days_district_mh.py)
+- **Script:** [`pipelines/cpcb-aqi/build_aqi_days_district_mh.py`](https://github.com/sarveshkant2003-afk/bharatnomy-data/tree/ff7d662c4206e81ed483c708cd23a4ab4c946d2c/pipelines/cpcb-aqi/build_aqi_days_district_mh.py)
 
 ## How it is computed
 
@@ -57,5 +57,5 @@ These describe the full warehouse table (all states).
 
 ## Where this comes from
 
-- Warehouse folder [`ENV_aqi-days-by-category_2015-to-2026_MH_BNY_DIST`](https://github.com/sarveshkant2003-afk/bharatnomy-data/tree/41650b8bb1975a4f4e082ba172d8b5dfb8f7db8a/ENV_aqi-days-by-category_2015-to-2026_MH_BNY_DIST) at commit `41650b8bb197`
+- Warehouse folder [`ENV_aqi-days-by-category_2015-to-2026_MH_BNY_DIST`](https://github.com/sarveshkant2003-afk/bharatnomy-data/tree/ff7d662c4206e81ed483c708cd23a4ab4c946d2c/ENV_aqi-days-by-category_2015-to-2026_MH_BNY_DIST) at commit `ff7d662c4206`
 - Filtered to `lgd_state_code` and cleaned by `build.py` in this repo. Files: `ENV_aqi-days-by-category_2015-to-2026_MH_BNY_DIST.csv`, `ENV_aqi-days-by-category_2015-to-2026_MH_BNY_DIST.json`.

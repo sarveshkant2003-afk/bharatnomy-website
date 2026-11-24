@@ -14,7 +14,7 @@ One row per power plant (1,589 plants of every fuel: coal, gas, oil, nuclear, hy
 - **Table taken from:** `global_power_plant_database.csv`, rows with `country` = `IND`
 - **Link:** https://datasets.wri.org/dataset/globalpowerplantdatabase (file: https://wri-dataportal-prod.s3.amazonaws.com/manual/global_power_plant_database_v_1_3.zip)
 - **Downloaded:** 24 Nov 2026
-- **Script:** [`pipelines/wri-gppd/build_power_plants.py`](https://github.com/sarveshkant2003-afk/bharatnomy-data/tree/41650b8bb1975a4f4e082ba172d8b5dfb8f7db8a/pipelines/wri-gppd/build_power_plants.py); checks in `check_power_plants.py`
+- **Script:** [`pipelines/wri-gppd/build_power_plants.py`](https://github.com/sarveshkant2003-afk/bharatnomy-data/tree/ff7d662c4206e81ed483c708cd23a4ab4c946d2c/pipelines/wri-gppd/build_power_plants.py); checks in `check_power_plants.py`
 
 Not an official Indian government release: CEA does not publish plant coordinates. Used with the user's approval (24 Nov 2026) because it is the only free, script-downloadable source of plant locations.
 
@@ -22,8 +22,8 @@ Not an official Indian government release: CEA does not publish plant coordinate
 
 | Column | Type | Unit | Description |
 |---|---|---|---|
-| `state_ut` | text |  | State/UT the plant's point falls in, from the 2011 district boundary and [`_reference/geography.csv`](https://github.com/sarveshkant2003-afk/bharatnomy-data/tree/41650b8bb1975a4f4e082ba172d8b5dfb8f7db8a/_reference/geography.csv) (added by Bharatnomy) |
-| `lgd_state_code` | text |  | State/UT the plant's point falls in, from the 2011 district boundary and [`_reference/geography.csv`](https://github.com/sarveshkant2003-afk/bharatnomy-data/tree/41650b8bb1975a4f4e082ba172d8b5dfb8f7db8a/_reference/geography.csv) (added by Bharatnomy) |
+| `state_ut` | text |  | State/UT the plant's point falls in, from the 2011 district boundary and [`_reference/geography.csv`](https://github.com/sarveshkant2003-afk/bharatnomy-data/tree/ff7d662c4206e81ed483c708cd23a4ab4c946d2c/_reference/geography.csv) (added by Bharatnomy) |
+| `lgd_state_code` | text |  | State/UT the plant's point falls in, from the 2011 district boundary and [`_reference/geography.csv`](https://github.com/sarveshkant2003-afk/bharatnomy-data/tree/ff7d662c4206e81ed483c708cd23a4ab4c946d2c/_reference/geography.csv) (added by Bharatnomy) |
 | `district` | text |  | 2011 district the point falls in, with its current LGD name and code (added by Bharatnomy) |
 | `lgd_district_code` | text |  | 2011 district the point falls in, with its current LGD name and code (added by Bharatnomy) |
 | `district_census_code` | text |  | 2011 district the point falls in, with its current LGD name and code (added by Bharatnomy) |
@@ -57,10 +57,10 @@ These describe the full warehouse table (all states).
 - 7 points fall outside every boundary: 6 go to the nearest district (Uri, Kasaragod DG, Dahanu, Kudankulam, Tuticorin JV, Dhauli Ganga); Uri-II (Jammu & Kashmir) is beyond the 2011 map's border line and is left blank.
 - The database is frozen at 2021: plants commissioned after about 2020 (much of India's newer solar and wind) are missing. Capacities for non-CEA plants can be older than 2019. Compare with `ENG_installed-capacity_*` (CEA) for current state totals.
 - Blank cells in `other_fuel*`, `commissioning_year`, `owner`, `url`, `wepp_id`, `year_of_capacity_data` and `generation_data_source` are blank in the source, which does not say why.
-- Generation figures are in [`ENG_power-plant-generation_2013-to-2019_STATES_WRI_DIST`](https://github.com/sarveshkant2003-afk/bharatnomy-data/tree/41650b8bb1975a4f4e082ba172d8b5dfb8f7db8a/ENG_power-plant-generation_2013-to-2019_STATES_WRI_DIST/).
+- Generation figures are in [`ENG_power-plant-generation_2013-to-2019_STATES_WRI_DIST`](https://github.com/sarveshkant2003-afk/bharatnomy-data/tree/ff7d662c4206e81ed483c708cd23a4ab4c946d2c/ENG_power-plant-generation_2013-to-2019_STATES_WRI_DIST/).
 - Checks (24 Nov 2026): 1,589 rows = India rows in the source; `gppd_idnr` unique; all `state_ut` in the list; capacity > 0; coordinates inside India's bounding box; 5 random rows match the source file.
 
 ## Where this comes from
 
-- Warehouse folder [`ENG_power-plants_2021_STATES_WRI_DIST`](https://github.com/sarveshkant2003-afk/bharatnomy-data/tree/41650b8bb1975a4f4e082ba172d8b5dfb8f7db8a/ENG_power-plants_2021_STATES_WRI_DIST) at commit `41650b8bb197`
+- Warehouse folder [`ENG_power-plants_2021_STATES_WRI_DIST`](https://github.com/sarveshkant2003-afk/bharatnomy-data/tree/ff7d662c4206e81ed483c708cd23a4ab4c946d2c/ENG_power-plants_2021_STATES_WRI_DIST) at commit `ff7d662c4206`
 - Filtered to `lgd_state_code` and cleaned by `build.py` in this repo. Files: `ENG_power-plants_2021_MH_WRI_DIST.csv`, `ENG_power-plants_2021_MH_WRI_DIST.json`.
