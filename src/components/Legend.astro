@@ -2,8 +2,8 @@
 // Map legend set as a sticker: colour classes with units, or the hachure key.
 import { tilt } from '../lib/seed';
 interface Entry { color: string; label: string }
-interface Props { title: string; entries?: Entry[]; hachure?: boolean; range?: string; nodata?: boolean; class?: string; seed?: string }
-const { title, entries = [], hachure = false, range, nodata = false, class: cls = '', seed } = Astro.props;
+interface Props { title: string; entries?: Entry[]; hachure?: boolean; range?: string; nodata?: boolean; nodataLabel?: string; class?: string; seed?: string }
+const { title, entries = [], hachure = false, range, nodata = false, nodataLabel = 'no data', class: cls = '', seed } = Astro.props;
 const gaps = [12, 8, 5.5, 3.6, 2.5];
 ---
 <figure class:list={['legend', cls]} style={`--tilt:${tilt(seed ?? title, 0)}deg`}>
@@ -24,7 +24,7 @@ const gaps = [12, 8, 5.5, 3.6, 2.5];
   ) : (
     <ul class="legend-list">
       {entries.map((e) => <li><span class="legend-swatch" style={`background:${e.color}`}></span><span class="mono">{e.label}</span></li>)}
-      {nodata && <li><span class="legend-swatch legend-swatch--nodata"></span><span class="mono">no data</span></li>}
+      {nodata && <li><span class="legend-swatch legend-swatch--nodata"></span><span class="mono">{nodataLabel}</span></li>}
     </ul>
   )}
 </figure>

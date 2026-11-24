@@ -13,9 +13,9 @@ One row per district per year: average and extreme daily maximum and minimum tem
 - **Data:** India Meteorological Department (IMD), Pune. Daily maximum and minimum temperature on a 1.0 x 1.0 degree grid (Srivastava et al. 2009), 1951-2024
 - **Link:** https://imdpune.gov.in/lrfindex.php (Gridded data: `Max_1_Bin.html`, `Min_1_Bin.html`)
 - **Downloaded:** 28 Oct 2026
-- **District boundaries:** Census 2011 district map from DataMeet (community-made, not official), used only to decide which grid cells fall in each district. See [`_sources/datameet-maps/`](https://github.com/sarveshkant2003-afk/bharatnomy-data/tree/cd7ce2d673103cc0e606e3cc37e49a9ae75f849a/_sources/datameet-maps/)
-- **Original files:** [`_sources/imd-gridded/`](https://github.com/sarveshkant2003-afk/bharatnomy-data/tree/cd7ce2d673103cc0e606e3cc37e49a9ae75f849a/_sources/imd-gridded/) (not committed, 1.9 GB; download steps in its README)
-- **Script:** [`pipelines/imd-gridded/build_district_indices.py`](https://github.com/sarveshkant2003-afk/bharatnomy-data/tree/cd7ce2d673103cc0e606e3cc37e49a9ae75f849a/pipelines/imd-gridded/build_district_indices.py)
+- **District boundaries:** Census 2011 district map from DataMeet (community-made, not official), used only to decide which grid cells fall in each district. See [`_sources/datameet-maps/`](https://github.com/sarveshkant2003-afk/bharatnomy-data/tree/41650b8bb1975a4f4e082ba172d8b5dfb8f7db8a/_sources/datameet-maps/)
+- **Original files:** [`_sources/imd-gridded/`](https://github.com/sarveshkant2003-afk/bharatnomy-data/tree/41650b8bb1975a4f4e082ba172d8b5dfb8f7db8a/_sources/imd-gridded/) (not committed, 1.9 GB; download steps in its README)
+- **Script:** [`pipelines/imd-gridded/build_district_indices.py`](https://github.com/sarveshkant2003-afk/bharatnomy-data/tree/41650b8bb1975a4f4e082ba172d8b5dfb8f7db8a/pipelines/imd-gridded/build_district_indices.py)
 
 ## How it is computed
 
@@ -24,7 +24,7 @@ One row per district per year: average and extreme daily maximum and minimum tem
 - **Heat wave day** (IMD criteria for the plains): Tmax at least 40 C and at least 4.5 C above normal, or Tmax at least 45 C. **Severe**: at least 6.5 C above normal or at least 47 C.
 - **Warm night** (IMD): Tmin at least 4.5 C above normal while Tmax is at least 40 C.
 - **Above p90**: Tmax (or Tmin) above the 90th percentile of the same calendar days (5-day window) in 1991-2020.
-- Same method as [`CLM_heat-indicators-nagpur_*`](https://github.com/sarveshkant2003-afk/bharatnomy-data/tree/cd7ce2d673103cc0e606e3cc37e49a9ae75f849a/CLM_heat-indicators-nagpur_1951-to-2025_MH_BNY_DIST/), which uses a single point for Nagpur city instead of the district area.
+- Same method as [`CLM_heat-indicators-nagpur_*`](https://github.com/sarveshkant2003-afk/bharatnomy-data/tree/41650b8bb1975a4f4e082ba172d8b5dfb8f7db8a/CLM_heat-indicators-nagpur_1951-to-2025_MH_BNY_DIST/), which uses a single point for Nagpur city instead of the district area.
 
 ## Columns
 
@@ -32,8 +32,8 @@ One row per district per year: average and extreme daily maximum and minimum tem
 |---|---|---|---|
 | `state_ut` | text |  | Maharashtra, 27 |
 | `lgd_state_code` | text |  | Maharashtra, 27 |
-| `district` | text |  | District, by its current name and LGD code (from [`_reference/geography.csv`](https://github.com/sarveshkant2003-afk/bharatnomy-data/tree/cd7ce2d673103cc0e606e3cc37e49a9ae75f849a/_reference/geography.csv)) |
-| `lgd_district_code` | text |  | District, by its current name and LGD code (from [`_reference/geography.csv`](https://github.com/sarveshkant2003-afk/bharatnomy-data/tree/cd7ce2d673103cc0e606e3cc37e49a9ae75f849a/_reference/geography.csv)) |
+| `district` | text |  | District, by its current name and LGD code (from [`_reference/geography.csv`](https://github.com/sarveshkant2003-afk/bharatnomy-data/tree/41650b8bb1975a4f4e082ba172d8b5dfb8f7db8a/_reference/geography.csv)) |
+| `lgd_district_code` | text |  | District, by its current name and LGD code (from [`_reference/geography.csv`](https://github.com/sarveshkant2003-afk/bharatnomy-data/tree/41650b8bb1975a4f4e082ba172d8b5dfb8f7db8a/_reference/geography.csv)) |
 | `year` | text |  | Calendar year |
 | `tmax_mean_c` | number | °C | Mean daily maximum / minimum temperature over the year, C |
 | `tmin_mean_c` | number | °C | Mean daily maximum / minimum temperature over the year, C |
@@ -67,5 +67,5 @@ These describe the full warehouse table (all states).
 
 ## Where this comes from
 
-- Warehouse folder [`CLM_temperature-indices_1951-to-2024_MH_BNY_DIST`](https://github.com/sarveshkant2003-afk/bharatnomy-data/tree/cd7ce2d673103cc0e606e3cc37e49a9ae75f849a/CLM_temperature-indices_1951-to-2024_MH_BNY_DIST) at commit `cd7ce2d67310`
+- Warehouse folder [`CLM_temperature-indices_1951-to-2024_MH_BNY_DIST`](https://github.com/sarveshkant2003-afk/bharatnomy-data/tree/41650b8bb1975a4f4e082ba172d8b5dfb8f7db8a/CLM_temperature-indices_1951-to-2024_MH_BNY_DIST) at commit `41650b8bb197`
 - Filtered to `lgd_state_code` and cleaned by `build.py` in this repo. Files: `CLM_temperature-indices_1951-to-2024_MH_BNY_DIST.csv`, `CLM_temperature-indices_1951-to-2024_MH_BNY_DIST.json`.

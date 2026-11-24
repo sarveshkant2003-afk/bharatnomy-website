@@ -11,7 +11,7 @@ import path from 'node:path';
 import { execFileSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { csvParse } from 'd3-dsv';
-import { DATA_REPO, DATA_REF, STATE, STATES_MAPPED, BOUNDARIES_PATH, DATASETS, INDIA_BOUNDARIES } from '../src/config/data.mjs';
+import { DATA_REPO, DATA_REF, STATE, STATES_MAPPED, BOUNDARIES_PATH, DATASETS, INDIA_BOUNDARIES, HOME_LAYERS } from '../src/config/data.mjs';
 import { METRICS } from '../src/config/metrics.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
@@ -31,7 +31,7 @@ function getRepo() {
     if (dirty) console.warn('WARNING: DATA_LOCAL has uncommitted changes under states/; the commit stamp will not describe them.');
     return { dir, sha: git(['rev-parse', 'HEAD'], dir), via: `local ${dir}` };
   }
-  const sparse = [path.posix.dirname(BOUNDARIES_PATH), ...DATASETS.map((d) => d.path)];
+  const sparse = [path.posix.dirname(BOUNDARIES_PATH), ...DATASETS.map((d) => d.path), ...Object.values(HOME_LAYERS).map((d) => d.path)];
   if (!fs.existsSync(path.join(CACHE, '.git'))) {
     fs.mkdirSync(path.dirname(CACHE), { recursive: true });
     log(`cloning ${DATA_REPO} (sparse) ...`);
@@ -200,6 +200,81 @@ function decadeFrames(temp, metricId) {
   return { metric: metricId, decades, values: vals };
 }
 
+// ------------------------------------------- home layers (Chapter III only)
+// Air quality: share of reported city-days with AQI above 100, per district and
+// year. The map uses 2011 boundaries (Thane includes Palghar), so Palghar's
+// bulletin cities are pooled into Thane from the raw city-day counts.
+const FOLD = { '665': '497' };   // Palghar -> Thane
+function buildAqi(repoDir, districts) {
+  const L = HOME_LAYERS.aqi;
+  const dir = path.join(repoDir, L.path);
+  const csvFile = path.join(dir, `${L.folder}.csv`);
+  if (!fs.existsSync(csvFile)) fail(`aqi: CSV not found at ${L.path}`);
+  const text = fs.readFileSync(csvFile, 'utf8');
+  const parsed = csvParse(text);
+  const rows = parsed.filter((r) => r.lgd_state_code === STATE.lgd);
+  rows.columns = parsed.columns;
+  const need = ['city_days_reported', 'city_days_aqi_above_100', 'cities', 'year', 'lgd_district_code'];
+  const miss = need.filter((c) => !rows.columns.includes(c));
+  if (miss.length) fail(`aqi: columns missing: ${miss.join(', ')}`);
+  const known = new Set(districts.map((d) => d.lgd));
+  const years = []; for (let y = L.years[0]; y <= L.years[1]; y++) years.push(y);
+  const acc = {};          // lgd -> year -> {rep, hi, cities:Set}
+  for (const r of rows) {
+    const y = +r.year; if (y < L.years[0] || y > L.years[1]) continue;
+    const lgd = FOLD[r.lgd_district_code] ?? r.lgd_district_code;
+    if (!known.has(lgd)) fail(`aqi: district ${r.district} (${r.lgd_district_code}) has no boundary`);
+    const a = ((acc[lgd] ??= {})[y] ??= { rep: 0, hi: 0, cities: new Set() });
+    a.rep += +r.city_days_reported; a.hi += +r.city_days_aqi_above_100;
+    r.cities.split('; ').forEach((c) => a.cities.add(c));
+  }
+  const values = {}, cities = {};
+  for (const d of districts) {
+    values[d.lgd] = years.map((y) => { const a = acc[d.lgd]?.[y]; return a && a.rep ? round((100 * a.hi) / a.rep, 1) : null; });
+    cities[d.lgd] = years.map((y) => (acc[d.lgd]?.[y] ? [...acc[d.lgd][y].cities].sort() : []));
+  }
+  const monitored = years.map((_, i) => districts.filter((d) => values[d.lgd][i] != null).length);
+  const out = {
+    metric: 'city_days_aqi_above_100_pct', dataset: L.slug,
+    label: 'Share of reported days with AQI above 100 (%)', unit: '%',
+    years, values, cities, monitored,
+    state_mean: years.map((_, i) => round(mean(districts.map((d) => values[d.lgd][i])), 1)),
+    folded: 'Palghar pooled into Thane (2011 boundaries)',
+    source: `${L.source}, ${years[0]}–${years[years.length - 1]}. Pooled by district by Bharatnomy.`,
+    folder: L.folder,
+  };
+  const outDir = path.join(OUT, L.slug);
+  fs.mkdirSync(outDir, { recursive: true });
+  fs.writeFileSync(path.join(outDir, 'years_city_days_aqi_above_100_pct.json'), JSON.stringify(out));
+  fs.writeFileSync(path.join(outDir, `${L.folder}.csv`), text);
+  fs.copyFileSync(path.join(dir, 'README.md'), path.join(outDir, 'README.md'));
+  return { rows: rows.length, monitored, years };
+}
+
+// Power plants: one point per plant (WRI GPPD v1.3).
+function buildPlants(repoDir) {
+  const L = HOME_LAYERS.plants;
+  const dir = path.join(repoDir, L.path);
+  const csvFile = path.join(dir, `${L.folder}.csv`);
+  if (!fs.existsSync(csvFile)) fail(`plants: CSV not found at ${L.path}`);
+  const text = fs.readFileSync(csvFile, 'utf8');
+  const rows = csvParse(text).filter((r) => r.lgd_state_code === STATE.lgd);
+  const plants = rows.map((r) => ({
+    name: r.plant, fuel: r.primary_fuel, mw: +r.capacity_mw, lon: +r.longitude, lat: +r.latitude,
+    district: r.district, lgd: FOLD[r.lgd_district_code] ?? r.lgd_district_code,
+    year: r.commissioning_year ? Math.round(+r.commissioning_year) : null, owner: r.owner || null,
+  })).filter((p) => Number.isFinite(p.lon) && Number.isFinite(p.lat) && p.mw > 0)
+    .sort((a, b) => b.mw - a.mw || a.name.localeCompare(b.name));
+  if (plants.length !== rows.length) fail(`plants: ${rows.length - plants.length} rows without coordinates or capacity`);
+  const outDir = path.join(OUT, L.slug);
+  fs.mkdirSync(outDir, { recursive: true });
+  fs.writeFileSync(path.join(outDir, 'plants.json'), JSON.stringify({ source: L.source, folder: L.folder, plants }));
+  fs.writeFileSync(path.join(outDir, `${L.folder}.csv`), text);
+  fs.copyFileSync(path.join(dir, 'README.md'), path.join(outDir, 'README.md'));
+  const byFuel = {}; for (const p of plants) { byFuel[p.fuel] = (byFuel[p.fuel] ?? 0) + 1; }
+  return { n: plants.length, mw: Math.round(plants.reduce((a, p) => a + p.mw, 0)), byFuel };
+}
+
 // ------------------------------------------------------------ stats + ticker
 function buildStats(temp, rain, frames, districts, stamp) {
   const name = Object.fromEntries(districts.map((d) => [d.lgd, d.name]));
@@ -280,6 +355,10 @@ const temp = loaded.find((d) => d.ds.slug === 'temperature');
 const rain = loaded.find((d) => d.ds.slug === 'rainfall');
 const frames = decadeFrames(temp, 'days_tmax_above_p90');
 fs.writeFileSync(path.join(OUT, 'temperature', 'decades_days_tmax_above_p90.json'), JSON.stringify(frames));
+const rainFrames = decadeFrames(rain, 'rainfall_jun_sep_departure_pct');
+fs.writeFileSync(path.join(OUT, 'rainfall', 'decades_rainfall_jun_sep_departure_pct.json'), JSON.stringify(rainFrames));
+const aqi = buildAqi(repo.dir, geo.districts);
+const plants = buildPlants(repo.dir);
 const { stats, ticker } = buildStats(temp, rain, frames, geo.districts, stamp);
 const datasetsMeta = loaded.map((d) => ({
   ...d.ds,
@@ -312,6 +391,9 @@ log(`  ${geo.districts.length} district shapes joined on lgd_district_code, 0 jo
 if (geo.nullGeom.length) log(`  dropped features with no geometry: ${geo.nullGeom.join(', ')} (data uses 2011 boundaries; Thane includes Palghar)`);
 log(`  districts.geojson ${geo.kb.toFixed(0)} KB · state.geojson ${geo.stateKb.toFixed(0)} KB`);
 log(`INDIA  ${india.states} state/UT outlines (Census 2011, warehouse ${india.sha.slice(0, 7)}) · india-states.geojson ${india.kb.toFixed(0)} KB\n`);
+log(`HOME LAYERS`);
+log(`  aqi: ${aqi.rows} district-years in the front repo · map years ${aqi.years[0]}–${aqi.years.at(-1)} · districts monitored per year ${aqi.monitored.join(' ')}`);
+log(`  plants: ${plants.n} plants, ${plants.mw.toLocaleString('en-IN')} MW · ${Object.entries(plants.byFuel).map(([k, v]) => `${k} ${v}`).join(', ')}\n`);
 log('STATS (CONTENT.md placeholders)');
 for (const [k, v] of Object.entries(stats)) if (k !== 'data') log(`  ${k.padEnd(32)} ${JSON.stringify(v)}`);
 log('\nTICKER');

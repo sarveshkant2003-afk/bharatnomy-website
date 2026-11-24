@@ -14,8 +14,10 @@ import SpecimenTag from '../components/SpecimenTag.astro';
 import Button from '../components/Button.astro';
 import IndiaSketch from '../components/home/IndiaSketch.astro';
 import Census from '../components/home/Census.astro';
-import { stats, decadeFrames } from '../lib/data';
+import { stats, decadeFrames, districts } from '../lib/data';
 import { coords, stampDate } from '../lib/format';
+import { homeLayers, layerFacts } from '../lib/homeLayers';
+import { DATA_REPO, DATA_REF, HOME_LAYERS } from '../config/data.mjs';
 import '../styles/home.css';
 
 const s = stats();
@@ -33,6 +35,18 @@ const lastI = df.decades.indexOf(fr[n - 1]);
 const darkest = Object.entries(df.values).sort((a, b) => (b[1][lastI] ?? -1) - (a[1][lastI] ?? -1))[0][0];
 const darkestIsChange = darkest === s.hottest_change_district_lgd;
 const span = s.temp_year_span;
+
+// Rainfall and air quality layers: same timing rule, their own frame counts
+const L = homeLayers();
+const F = layerFacts();
+const dn: Record<string, string> = Object.fromEntries(districts().map((d) => [d.lgd, d.name]));
+const atK = (n: number) => (k: number) => +(P0 + (k / n) * (P1 - P0) + 0.01).toFixed(3);
+const nR = L[1].frames.length, atR = atK(nR);
+const kRLast = L[1].frames.findIndex((f) => f.tick === F.rain.lastLabel);
+const nA = L[2].frames.length, atA = atK(nA);
+const sign = (v: number) => (v > 0 ? `+${v}` : v < 0 ? `−${Math.abs(v)}` : '0');
+const rainSpan = s.rain_last_year - s.rain_first_year + 1;
+const ghTree = (p: string) => `${DATA_REPO}/tree/${DATA_REF}/${p}`;
 ---
 <Notebook
   title="Bharatnomy"
@@ -129,16 +143,38 @@ const span = s.temp_year_span;
   <section class="ch ch-three" data-sc-act="pin" data-sc-span="6" data-chapter={`CH. III · ${span} SUMMERS`} aria-labelledby="h-three">
     <div class="sc-stage census-stage" data-sc-stage>
       <div class="census-wrap">
-        <h2 id="h-three" class="display t-l census-title">{span} summers, shaded by hand.</h2>
+        <h2 id="h-three" class="display t-l census-title">
+          <span data-layer-title="temperature">{span} summers, shaded by hand.</span>
+          <span data-layer-title="rainfall" hidden>{rainSpan} monsoons, shaded by hand.</span>
+          <span data-layer-title="aqi" hidden>{F.aqi.years} years of air, shaded by hand.</span>
+        </h2>
         <Census>
-          <p class="census-line" data-sc-cue={`${at(0)} 1 0.03 0.005`}>In the {s.decade_first}, the average district had <strong><span class="cnt" data-sc-count={`0 ${s.p90_days_first}`} data-sc-count-at={`${at(0)} ${at(0) + 0.06}`}>{s.p90_days_first}</span><span class="cnt-static">{s.p90_days_first}</span> days</strong> a year hotter than its own 1991 to 2020 normal for that time of year.</p>
-          <p class="census-line" data-sc-cue={`${at(kLast)} 1 0.03 0.005`}>By the {s.decade_last}, it had <strong><span class="cnt" data-sc-count={`0 ${s.p90_days_last}`} data-sc-count-at={`${at(kLast)} ${at(kLast) + 0.06}`}>{s.p90_days_last}</span><span class="cnt-static">{s.p90_days_last}</span></strong>.</p>
-          {darkestIsChange
-            ? <p class="census-line" data-sc-cue={`${at(n - 1)} 1 0.03 0.005`}>The darkest district on this map, {s.hottest_change_district}, gained <strong><span class="cnt" data-sc-count={`0 ${s.hottest_change_days}`} data-sc-count-at={`${at(n - 1)} ${at(n - 1) + 0.06}`}>{s.hottest_change_days}</span><span class="cnt-static">{s.hottest_change_days}</span></strong> such days a year.</p>
-            : <p class="census-line" data-sc-cue={`${at(n - 1)} 1 0.03 0.005`}>The biggest gain was in {s.hottest_change_district}: <strong>{s.hottest_change_days}</strong> more such days a year.</p>}
-          <p class="census-close" data-sc-cue="0.9 1 0.03 0.005">Every line of shading is a number you can download.</p>
-          <aside class="mnote census-aside"><span class="label mnote-label">Why this measure</span>Why this measure and not "heat wave days"? A 1-degree grid cell is about 110 km wide, so it smooths out the hottest afternoons. Counting days above each district's own 90th percentile does not depend on absolute thresholds, so it is the fairer way to compare change over time.</aside>
-          <p class="source label census-source">SOURCE: IMD GRIDDED DAILY TEMPERATURE (1° GRID), {s.temp_first_year}–{s.temp_last_year} · DISTRICT INDICES COMPUTED BY BHARATNOMY · METRIC: DAYS WITH TMAX ABOVE THE 1991–2020 90TH PERCENTILE · <a href={u("/datasets/temperature")}>DATASET</a> · <a href={u(`/atlas?dataset=temperature&metric=days_tmax_above_p90&view=decade`)}>OPEN IN ATLAS</a></p>
+          <Fragment slot="temperature">
+            <p class="census-line" data-sc-cue={`${at(0)} 1 0.03 0.005`}>In the {s.decade_first}, the average district had <strong><span class="cnt" data-sc-count={`0 ${s.p90_days_first}`} data-sc-count-at={`${at(0)} ${at(0) + 0.06}`}>{s.p90_days_first}</span><span class="cnt-static">{s.p90_days_first}</span> days</strong> a year hotter than its own 1991 to 2020 normal for that time of year.</p>
+            <p class="census-line" data-sc-cue={`${at(kLast)} 1 0.03 0.005`}>By the {s.decade_last}, it had <strong><span class="cnt" data-sc-count={`0 ${s.p90_days_last}`} data-sc-count-at={`${at(kLast)} ${at(kLast) + 0.06}`}>{s.p90_days_last}</span><span class="cnt-static">{s.p90_days_last}</span></strong>.</p>
+            {darkestIsChange
+              ? <p class="census-line" data-sc-cue={`${at(n - 1)} 1 0.03 0.005`}>The darkest district on this map, {s.hottest_change_district}, gained <strong><span class="cnt" data-sc-count={`0 ${s.hottest_change_days}`} data-sc-count-at={`${at(n - 1)} ${at(n - 1) + 0.06}`}>{s.hottest_change_days}</span><span class="cnt-static">{s.hottest_change_days}</span></strong> such days a year.</p>
+              : <p class="census-line" data-sc-cue={`${at(n - 1)} 1 0.03 0.005`}>The biggest gain was in {s.hottest_change_district}: <strong>{s.hottest_change_days}</strong> more such days a year.</p>}
+            <p class="census-close" data-sc-cue="0.9 1 0.03 0.005">Every line of shading is a number you can download.</p>
+            <aside class="mnote census-aside"><span class="label mnote-label">Why this measure</span>Why this measure and not "heat wave days"? A 1-degree grid cell is about 110 km wide, so it smooths out the hottest afternoons. Counting days above each district's own 90th percentile does not depend on absolute thresholds, so it is the fairer way to compare change over time.</aside>
+            <p class="source label census-source">SOURCE: IMD GRIDDED DAILY TEMPERATURE (1° GRID), {s.temp_first_year}–{s.temp_last_year} · DISTRICT INDICES COMPUTED BY BHARATNOMY · METRIC: DAYS WITH TMAX ABOVE THE 1991–2020 90TH PERCENTILE · <a href={u("/datasets/temperature")}>DATASET</a> · <a href={u(`/atlas?dataset=temperature&metric=days_tmax_above_p90&view=decade`)}>OPEN IN ATLAS</a></p>
+          </Fragment>
+          <Fragment slot="rainfall">
+            <p class="census-line" data-sc-cue={`${atR(0)} 1 0.03 0.005`}>In the {F.rain.firstLabel}, the average district's June to September rain ran <strong>{sign(F.rain.firstAvg)}%</strong> against its own 1971 to 2020 normal.</p>
+            <p class="census-line" data-sc-cue={`${atR(kRLast)} 1 0.03 0.005`}>In the {F.rain.lastLabel}, <strong>{sign(F.rain.lastAvg)}%</strong>.</p>
+            <p class="census-line" data-sc-cue={`${atR(nR - 1)} 1 0.03 0.005`}>That decade, <strong>{F.rain.wetterLast}</strong> of {F.rain.countLast} districts had a wetter monsoon than their normal.</p>
+            <p class="census-close" data-sc-cue="0.9 1 0.03 0.005">Every line of shading is a number you can download.</p>
+            <aside class="mnote census-aside"><span class="label mnote-label">Why this measure</span>Each district is compared with its own 1971 to 2020 average, IMD's long period average, so a dry district and a wet one are read on the same footing. Zero is a normal monsoon. Brown is drier than normal, teal is wetter.</aside>
+            <p class="source label census-source">SOURCE: IMD GRIDDED DAILY RAINFALL (0.25° GRID), {s.rain_first_year}–{s.rain_last_year} · DISTRICT INDICES COMPUTED BY BHARATNOMY · METRIC: JUNE–SEPTEMBER RAINFALL VS 1971–2020 AVERAGE · <a href={u("/datasets/rainfall")}>DATASET</a> · <a href={u(`/atlas?dataset=rainfall&metric=rainfall_jun_sep_departure_pct&view=decade`)}>OPEN IN ATLAS</a></p>
+          </Fragment>
+          <Fragment slot="aqi">
+            <p class="census-line" data-sc-cue={`${atA(0)} 1 0.03 0.005`}>In {F.aqi.firstYear}, CPCB's daily air quality bulletin covered cities in <strong>{F.aqi.monitoredFirst}</strong> of Maharashtra's districts.</p>
+            <p class="census-line" data-sc-cue={`${atA(nA - 1)} 1 0.03 0.005`}>By {F.aqi.lastYear}, <strong>{F.aqi.monitoredLast}</strong>. That year the average monitored district had AQI above 100 on <strong>{F.aqi.lastAvg}%</strong> of its reported days; {dn[F.aqi.worstLgd]} had the highest share, {F.aqi.worstPct}%.</p>
+            <p class="census-close" data-sc-cue="0.9 1 0.03 0.005">Grey hatching means no monitor, not clean air.</p>
+            <aside class="mnote census-aside"><span class="label mnote-label">Why this measure</span>AQI above 100 is CPCB's Moderate band or worse. Counting the share of reported days, not raw days, keeps a city that joined the bulletin mid-year comparable. Mumbai is one bulletin city, shown in both Mumbai districts; Palghar's cities are counted in Thane, as on the 2011 map.</aside>
+            <p class="source label census-source">SOURCE: CPCB NATIONAL AIR QUALITY INDEX DAILY BULLETINS, {F.aqi.firstYear}–{F.aqi.lastYear} · CITY-DAYS POOLED BY DISTRICT BY BHARATNOMY · METRIC: SHARE OF REPORTED DAYS WITH AQI ABOVE 100 · <a href={ghTree(HOME_LAYERS.aqi.path)}>DATASET</a></p>
+          </Fragment>
+          <p class="source label census-source census-plants-source">POWER PLANTS: WRI GLOBAL POWER PLANT DATABASE V1.3 (2021), {F.plants.n} PLANTS, {F.plants.mw.toLocaleString('en-IN')} MW, PLACED IN 2011 DISTRICTS · PLANTS BUILT AFTER ABOUT 2020 ARE MISSING · <a href={ghTree(HOME_LAYERS.plants.path)}>DATASET</a></p>
         </Census>
       </div>
     </div>
