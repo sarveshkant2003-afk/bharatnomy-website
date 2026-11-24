@@ -23,6 +23,7 @@ interface LayerClient {
   id: string; sliderLabel: string; aria: string;
   frames: { label: string; first: number; last: number }[];
   colors: Record<string, string[]>;
+  nodata: Record<string, number[]> | null;
   tally: Record<string, { name: string; a: number | null; b: number | null }>;
   labA: string; labB: string; unit: string; signed: boolean;
   pen: PenMeta;
@@ -35,6 +36,22 @@ if (census && act) {
   const layers = JSON.parse(census.dataset.layers!) as LayerClient[];
   const plantCards = JSON.parse(census.dataset.plantCards!) as string[];
   const fills = Array.from(census.querySelectorAll<SVGPathElement>('.census-fill path'));
+  const ndPaths = Array.from(census.querySelectorAll<SVGPathElement>('.census-nodata path'));
+  const dated = Array.from(census.querySelectorAll<SVGCircleElement>('.census-plants circle[data-y]')).map((c) => ({ c, y: +c.dataset.y!, o: -1 }));
+  // colour blending: frames are class colours (#rrggbb); mix them channel by channel
+  const rgb = (h: string) => [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16));
+  const rgbCache = new Map<string, number[]>();
+  const toRgb = (h: string) => { let v = rgbCache.get(h); if (!v) { v = rgb(h); rgbCache.set(h, v); } return v; };
+  const mix = (a: string, b: string, t: number) => {
+    if (t <= 0 || a === b) return a;
+    if (t >= 1) return b;
+    const A = toRgb(a), B = toRgb(b);
+    return `rgb(${Math.round(A[0] + (B[0] - A[0]) * t)},${Math.round(A[1] + (B[1] - A[1]) * t)},${Math.round(A[2] + (B[2] - A[2]) * t)})`;
+  };
+  // ease with a short hold on each frame, so every frame is readable but
+  // the change between frames is always visible as a slow blend
+  const HOLD = 0.18;
+  const ease = (t: number) => { const u = clamp((t - HOLD) / (1 - 2 * HOLD)); return u * u * (3 - 2 * u); };
   const slider = census.querySelector<HTMLInputElement>('[data-slider]')!;
   const sliderLabel = census.querySelector<HTMLElement>('[data-slider-label]')!;
   const label = census.querySelector<HTMLElement>('[data-decade]')!;
@@ -73,48 +90,81 @@ if (census && act) {
   let last = -1;
   let lastP = 0;
 
+  // Scroll position maps to a continuous frame index c in [0, n-1]: frame k is
+  // fully shown at c = k, and between frames colours, hachure and the pen blend.
+  const frameAt = (p: number, n: number) => clamp((p - P0) / (P1 - P0)) * n - 0.5;   // -0.5 .. n-0.5
   const render = (p: number) => {
     lastP = p;
-    if (Math.abs(p - last) < 0.0005) return;
+    if (Math.abs(p - last) < 0.0002) return;
     last = p;
     const { L, groups, clip, nib } = cur;
     const frames = L.frames, n = frames.length;
-    const pos = clamp((p - P0) / (P1 - P0)) * n;          // 0..n
+    const raw = frameAt(p, n);
+    const silent = raw < -0.45;                              // before the act starts drawing
+    const c = Math.max(0, Math.min(n - 1, raw));
+    const k0 = Math.floor(c), k1 = Math.min(n - 1, k0 + 1);
+    const t = k1 === k0 ? 0 : ease(c - k0);
+    const intro = clamp((raw + 0.5) / 0.5);                  // first frame fades in from blank paper
+    // hachure: the two frames either side of c crossfade; all others are off
     groups.forEach((g, i) => {
-      const fadeIn = clamp((pos - i) * 4);
-      const fadeOut = i < n - 1 ? clamp((i + 1.25 - pos) * 4) : 1;
-      g.style.opacity = String(Math.min(fadeIn, fadeOut));
+      const o = silent ? 0 : i === k0 ? (1 - t) * intro : i === k1 ? t * intro : 0;
+      g.style.opacity = o.toFixed(3);
     });
-    const k = Math.min(n - 1, Math.floor(pos));
-    const txt = pos < 0.02 ? '' : frames[k].label;
+    // colour: every district blends from frame k0's class colour to k1's
+    fills.forEach((f) => {
+      const col = L.colors[f.dataset.lgd!];
+      f.style.fill = silent ? 'transparent' : intro < 1 ? mix('#FBFBF8', col[0], intro) : mix(col[k0], col[k1], t);
+    });
+    ndPaths.forEach((f) => {
+      const nd = L.nodata?.[f.dataset.lgd!];
+      f.style.opacity = !nd || silent ? '0' : String(((nd[k0] * (1 - t)) + nd[k1] * t) * intro);
+    });
+    const k = t >= 0.5 ? k1 : k0;                            // the frame the label names
+    const txt = silent ? '' : frames[k].label;
     if (label.textContent !== txt) label.textContent = txt;
-    // colour follows the frame on show (fill transition in CSS); silence = unfilled
-    const ck = pos < 0.02 ? -1 : k;
-    if (ck !== shownK) {
-      shownK = ck;
-      fills.forEach((f) => { f.style.fill = ck < 0 ? 'transparent' : L.colors[f.dataset.lgd!][ck]; });
-      if (ck >= 0 && document.activeElement !== slider) slider.value = String(ck);
-      slider.setAttribute('aria-valuetext', ck < 0 ? frames[0].label : frames[ck].label);
+    const sk = silent ? -1 : k;
+    if (sk !== shownK) {
+      shownK = sk;
+      if (sk >= 0 && document.activeElement !== slider && !gliding) slider.value = String(sk);
+      slider.setAttribute('aria-valuetext', sk < 0 ? frames[0].label : frames[sk].label);
     }
-    // pen reaches the end of the frame on show, easing over each step
-    const prevEnd = k === 0 ? cur.yr0 : frames[k - 1].last;
-    const year = pos < 0.02 ? cur.yr0 : prevEnd + (frames[k].last - prevEnd) * clamp((pos - k) * 4);
+    // pen and the "now" year: glide with the same easing between frames' last years
+    const y0 = cur.yr0;
+    const year = silent ? y0 : raw < 0 ? y0 + (frames[0].last - y0) * intro : frames[k0].last + (frames[k1].last - frames[k0].last) * t;
     const x = cur.px(year);
     clip.setAttribute('width', String(x));
     nib.setAttribute('transform', `translate(${x.toFixed(1)} ${cur.py(cur.meanAt(year)).toFixed(1)})`);
-    nib.style.opacity = pos < 0.02 ? '0' : '1';
+    nib.style.opacity = silent ? '0' : '1';
+    // power plants with a commissioning year fade in over two years as "now" passes it
+    for (const d of dated) {
+      const o = silent ? 0 : clamp((year - d.y + 1) / 2);
+      if (Math.abs(o - d.o) > 0.01) { d.o = o; d.c.style.opacity = o.toFixed(2); d.c.style.transform = `scale(${(0.4 + 0.6 * o).toFixed(2)})`; }
+    }
   };
 
   // the slider: drives the same scroll position the frame lives at, so scroll
   // and slider never disagree. Under reduced motion it sets the frame directly.
-  const posFor = (k: number) => k + 0.9;                       // frame k fully shown
-  const pFor = (k: number) => P0 + (posFor(k) / cur.L.frames.length) * (P1 - P0);
+  // frame k is fully shown at c = k, i.e. p = P0 + (k + 0.5) / n * (P1 - P0)
+  const pFor = (k: number) => P0 + ((k + 0.5) / cur.L.frames.length) * (P1 - P0);
+  // the slider glides the page to its frame (about 0.9 s), so the map blends
+  // through the frames in between instead of jumping
+  let gliding = false, glideRaf = 0;
   slider.addEventListener('input', () => {
     const k = +slider.value;
     if (reduce) { last = -1; render(pFor(k)); return; }
     const p = Math.min(0.995, pFor(k));
     const top = act.getBoundingClientRect().top + scrollY;
-    window.scrollTo({ top: Math.round(top + p * (act.offsetHeight - innerHeight)), behavior: 'instant' as ScrollBehavior });
+    const to = Math.round(top + p * (act.offsetHeight - innerHeight));
+    const from = scrollY, dist = to - from, t0 = performance.now();
+    const dur = Math.min(1400, 500 + Math.abs(dist) * 0.25);
+    cancelAnimationFrame(glideRaf);
+    gliding = true;
+    const step = (now: number) => {
+      const u = clamp((now - t0) / dur), e = u < 0.5 ? 4 * u * u * u : 1 - (-2 * u + 2) ** 3 / 2;
+      window.scrollTo({ top: Math.round(from + dist * e), behavior: 'instant' as ScrollBehavior });
+      if (u < 1) glideRaf = requestAnimationFrame(step); else gliding = false;
+    };
+    glideRaf = requestAnimationFrame(step);
   });
 
   // layer buttons: swap which frames, colours, pen, legend and copy are live

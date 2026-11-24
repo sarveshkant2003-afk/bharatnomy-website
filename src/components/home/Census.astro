@@ -10,13 +10,16 @@ import { frameFor, sketchDistricts, roughLine } from '../../lib/sketch';
 import { scaleLinear } from 'd3-scale';
 import { homeLayers, plantsFile, FUELS, plantRadius } from '../../lib/homeLayers';
 import Legend from '../Legend.astro';
+import { DATA_REPO, DATA_REF, HOME_LAYERS } from '../../config/data.mjs';
 
 interface Props { width?: number; height?: number }
 const { width = 640, height = 470 } = Astro.props;
 const fc = districtsGeo();
 const frame = frameFor(stateGeo(), width, height, 10);
 const layers = homeLayers();
-const NODATA = 'url(#census-nodata)';
+// districts without a value blend through the paper colour; the "no monitor"
+// hatching is a separate overlay whose opacity crossfades (see home.ts)
+const PAPER = '#FBFBF8';
 
 const outline = sketchDistricts(fc, { frame, roughness: 0.7 });
 const names = Object.fromEntries(outline.map((d) => [d.lgd, d.name]));
@@ -26,7 +29,8 @@ const SW = 1200, SH = 150, pad = { l: 44, r: 16, t: 18, b: 26 };
 
 const built = layers.map((L, li) => {
   const shaded = L.frames.map((f) => sketchDistricts(fc, { frame, values: f.values, range: L.hatchRange, seedSalt: f.first + li * 7, roughness: 0.7 }));
-  const colors = Object.fromEntries(outline.map((d) => [d.lgd, L.frames.map((f) => L.scale.color(f.values[d.lgd]) ?? (L.nodataLabel ? NODATA : 'none'))]));
+  const colors = Object.fromEntries(outline.map((d) => [d.lgd, L.frames.map((f) => L.scale.color(f.values[d.lgd]) ?? PAPER)]));
+  const nodata = L.nodataLabel ? Object.fromEntries(outline.map((d) => [d.lgd, L.frames.map((f) => (f.values[d.lgd] == null ? 1 : 0))])) : null;
   const p = L.pen;
   const x = scaleLinear().domain([p.years[0], p.years[p.years.length - 1]]).range([pad.l, SW - pad.r]);
   const y = scaleLinear().domain([p.y0, p.y1]).range([SH - pad.b, pad.t]).nice(3);
@@ -36,7 +40,7 @@ const built = layers.map((L, li) => {
   const client = {
     id: L.id, sliderLabel: L.sliderLabel, aria: L.mapAria,
     frames: L.frames.map((f) => ({ label: f.label, first: f.first, last: f.last })),
-    colors, tally, labA: L.tally.labA, labB: L.tally.labB, unit: L.tally.unit, signed: L.tally.signed,
+    colors, nodata, tally, labA: L.tally.labA, labB: L.tally.labB, unit: L.tally.unit, signed: L.tally.signed,
     pen: { years: p.years, mean: p.mean, x0: pad.l, x1: SW - pad.r, y0: y.domain()[0], y1: y.domain()[1], top: pad.t, bottom: SH - pad.b },
   };
   return { L, shaded, x, y, pen, client };
@@ -52,6 +56,7 @@ const plants = P.plants.map((pl) => {
 const fuelsPresent = FUELS.filter((f) => plants.some((p) => p.fuel === f.id)).map((f) => ({ ...f, n: plants.filter((p) => p.fuel === f.id).length }));
 const plantCards = plants.map((p) => `${p.name.toUpperCase()} · ${p.fuel.toUpperCase()} · ${Math.round(p.mw).toLocaleString('en-IN')} MW · ${p.district.toUpperCase()}${p.year ? ` · SINCE ${p.year}` : ''}`);
 const first = built[0];
+const plantsHref = `${DATA_REPO}/tree/${DATA_REF}/${HOME_LAYERS.plants.path}`;
 ---
 <div class="census" data-census data-layers={JSON.stringify(built.map((b) => b.client))} data-plant-cards={JSON.stringify(plantCards)}>
   <div class="census-map">
@@ -67,10 +72,11 @@ const first = built[0];
     <svg class="sketch census-svg" viewBox={`0 0 ${width} ${height}`} role="img" aria-label={first.L.mapAria} data-map-svg>
       <defs>
         <pattern id="census-nodata" width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
-          <rect width="6" height="6" fill="var(--paper-raised)" /><line x1="0" y1="0" x2="0" y2="6" stroke="#4C535C" stroke-width="0.8" opacity="0.55" />
+          <line x1="0" y1="0" x2="0" y2="6" stroke="#4C535C" stroke-width="0.8" opacity="0.55" />
         </pattern>
       </defs>
       <g class="census-fill">{outline.map((d) => <path data-lgd={d.lgd} d={d.plain} />)}</g>
+      <g class="census-nodata">{outline.map((d) => <path data-lgd={d.lgd} d={d.plain} fill="url(#census-nodata)" />)}</g>
       {built.map((b, li) => (
         <g class="census-layer" data-layer={b.L.id} hidden={li !== 0}>
           {b.shaded.map((ds, k) => (
@@ -84,7 +90,9 @@ const first = built[0];
         ))}
       </g>
       <g class="census-plants" data-plants aria-hidden="true">
-        {plants.map((p, i) => <circle data-i={i} cx={p.cx} cy={p.cy} r={p.r} style={`fill:${p.color}`} />)}
+        {plants.map((p, i) => p.year
+          ? <circle data-i={i} data-y={p.year} cx={p.cx} cy={p.cy} r={p.r} style={`--c:${p.color}`} />
+          : <circle class="undated" data-i={i} cx={p.cx} cy={p.cy} r={p.r} style={`--c:${p.color}`} />)}
       </g>
     </svg>
     <div class="census-tally label" data-tally-card hidden></div>
@@ -107,6 +115,7 @@ const first = built[0];
         <ul class="plant-legend-list">
           {fuelsPresent.map((f) => <li><svg viewBox="0 0 12 12" width="12" height="12" aria-hidden="true"><circle cx="6" cy="6" r="4.5" style={`fill:${f.color}`} /></svg><span class="mono">{f.label}<span class="m-long"> {f.n}</span></span></li>)}
         </ul>
+        <p class="mono plant-note">● appears in its commissioning year · ○ year not published</p>
       </figure>
     </div>
   </div>
@@ -132,6 +141,12 @@ const first = built[0];
           <g class="strip-nib" data-pen-nib><circle r="4" /><line x1="0" y1="-5" x2="7" y2="-16" /></g>
         </svg>
         <figcaption class="label soft">{b.L.pen.caption}</figcaption>
+        <p class="source label census-src">
+          {b.L.id === 'temperature' && <slot name="src-temperature" />}
+          {b.L.id === 'rainfall' && <slot name="src-rainfall" />}
+          {b.L.id === 'aqi' && <slot name="src-aqi" />}
+          {' · '}PLANTS: WRI GLOBAL POWER PLANT DATABASE V1.3 (2021), PLANTS BUILT AFTER ABOUT 2020 MISSING · <a href={plantsHref}>DATA</a>
+        </p>
       </div>
     ))}
   </figure>

@@ -109,13 +109,22 @@ body.home .btn--primary { color: var(--paper); }
 .census-wrap { max-width: var(--page-max); height: 100%; margin-inline: auto; padding: var(--s-6) var(--gutter) var(--s-5); display: grid; grid-template-rows: auto 1fr; gap: var(--s-3); }
 .census {
   display: grid; min-height: 0;
-  grid-template-columns: minmax(0, 7fr) minmax(0, 5fr);
+  grid-template-columns: minmax(0, 8fr) minmax(0, 4fr);
   grid-template-rows: minmax(0, 1fr) auto;
   grid-template-areas: "map lines" "strip strip";
   column-gap: var(--s-7); row-gap: var(--s-3);
 }
-.census-map { grid-area: map; position: relative; min-height: 0; display: flex; flex-direction: column; }
-.census-fill path { fill: transparent; stroke: none; transition: fill 520ms ease-in-out; }
+.census-map {
+  grid-area: map; position: relative; min-height: 0;
+  display: grid; grid-template-columns: minmax(0, 1fr) 240px; grid-template-rows: auto minmax(0, 1fr) auto;
+  grid-template-areas: "controls controls" "svg legends" "ruler ruler"; column-gap: var(--s-4);
+}
+.census-map > .census-controls { grid-area: controls; }
+.census-map > .census-svg { grid-area: svg; }
+.census-map > .census-ruler { grid-area: ruler; }
+.census-map > .census-legends { grid-area: legends; }
+.census-fill path { fill: transparent; stroke: none; }
+.census-nodata path { opacity: 0; stroke: none; pointer-events: none; }
 .ch-three .census-frame .sk-hatch { stroke: var(--ink); opacity: 0.42; stroke-width: 0.55; }
 .census-ruler { display: grid; grid-template-columns: auto 1fr; align-items: center; column-gap: var(--s-4); margin-top: var(--s-2); max-width: 640px; }
 .census-ruler input[type="range"] { width: 100%; accent-color: var(--accent); height: 28px; cursor: pointer; margin: 0; }
@@ -137,10 +146,14 @@ body.home .btn--primary { color: var(--paper); }
 .plant-toggle[aria-pressed="false"] { color: var(--ink-soft); }
 .plant-toggle[aria-pressed="false"] svg circle { fill: transparent; stroke: var(--ink-soft); }
 .layer-btn:focus-visible, .plant-toggle:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
-.census-plants circle { stroke: var(--paper-raised); stroke-width: 0.9; fill-opacity: 0.92; }
+.census-plants circle { fill: var(--c); stroke: var(--paper-raised); stroke-width: 0.9; fill-opacity: 0.92; transform-box: fill-box; transform-origin: center; }
+.census-plants circle[data-y] { opacity: 0; }
+.census-plants circle.undated { fill: var(--paper-raised); fill-opacity: 0.35; stroke: var(--c); stroke-width: 1.1; }
+.plant-note { margin: 4px 0 0; font-size: 0.6rem; color: var(--ink-soft); }
+.census-src { margin: 4px 0 0; font-size: 0.6rem; white-space: normal; overflow-wrap: anywhere; max-width: 100%; }
 .census-plants circle.is-hover { stroke: var(--accent); stroke-width: 2; }
 @media (hover: hover) and (pointer: fine) { .census-plants circle { cursor: default; } }
-.census-legends { position: absolute; right: 0; bottom: 104px; display: grid; gap: var(--s-2); justify-items: end; max-width: 240px; }
+.census-legends { display: grid; gap: var(--s-2); align-content: end; justify-items: stretch; min-height: 0; }
 .census-legend { max-width: 240px; padding: var(--s-2) var(--s-3); }
 .plant-legend { padding: var(--s-2) var(--s-3); background: var(--paper-raised); border: var(--hair); margin: 0; }
 .plant-legend-list { list-style: none; margin: 4px 0 0; padding: 0; display: grid; grid-template-columns: 1fr 1fr; gap: 2px var(--s-3); }
@@ -150,7 +163,7 @@ body.home .btn--primary { color: var(--paper); }
 .m-short { display: none; }
 .census-plants-source { margin-top: calc(-1 * var(--s-2)); }
 .census-legend .legend-list .mono { font-size: 0.68rem; }
-.census-svg { width: 100%; flex: 1 1 auto; min-height: 0; max-height: calc(100svh - 420px); }
+.census-svg { width: 100%; height: 100%; min-height: 0; max-height: calc(100svh - 440px); }
 .census-frame { opacity: 0; }
 .census-decade {
   margin: 0 auto 0 0; white-space: nowrap;
@@ -170,7 +183,7 @@ body.home .btn--primary { color: var(--paper); }
 .census-aside { max-width: 44ch; margin-top: var(--s-3); }
 .census-source { margin-top: 0; }
 .census-strip { grid-area: strip; margin: 0; }
-.census-strip svg { width: 100%; height: 132px; overflow: visible; }
+.census-strip svg { width: 100%; height: 112px; overflow: visible; }
 .census-strip figcaption { margin-top: 2px; font-size: 0.62rem; }
 .strip-band { fill: var(--accent-wash); opacity: 0.55; }
 .strip-pen { fill: none; stroke: var(--accent); stroke-width: 2; stroke-linejoin: round; vector-effect: non-scaling-stroke; }
@@ -224,7 +237,9 @@ body.home .btn--primary { color: var(--paper); }
   .census-wrap { padding-top: var(--s-5); }
   .census { grid-template-columns: 1fr; grid-template-rows: auto auto auto; grid-template-areas: "map" "strip" "lines"; row-gap: var(--s-2); }
   .census-svg { max-height: 22svh; }
-  .census-legends { position: static; max-width: none; margin-top: var(--s-2); justify-items: stretch; }
+  .census-map { display: flex; flex-direction: column; }
+  .census-svg { height: auto; }
+  .census-legends { margin-top: var(--s-2); }
   .census-legend { max-width: none; }
   .m-long { display: none; } .m-short { display: inline; }
   .census-controls { justify-content: flex-start; gap: var(--s-2); flex-wrap: wrap; }
@@ -240,6 +255,8 @@ body.home .btn--primary { color: var(--paper); }
   .census-legends .legend-title { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 0.6rem; }
   .census-legends { gap: var(--s-1); }
   .census-strip figcaption { display: none; }
+  .plant-note { display: none; }
+  .census-src { font-size: 0.52rem; }
   .census-ticks li:nth-child(even) { visibility: hidden; }
   .census-legend .legend-list { grid-template-columns: 1fr 1fr; }
   .census-strip svg { height: 48px; }
@@ -259,7 +276,7 @@ body.home .btn--primary { color: var(--paper); }
   .ch-three { height: auto !important; }
   .census-stage { position: static !important; height: auto !important; }
   .census-svg { max-height: 70vh; }
-  .census-fill path { transition: none; }
+  .census-plants circle[data-y] { opacity: 1; }
   .census-line, .census-close { opacity: 1 !important; transform: none !important; }
   .cnt { display: none; }
   .cnt-static { display: inline; }
