@@ -77,7 +77,8 @@ export const FUELS: { id: string; label: string; color: string }[] = [
   { id: 'Biomass', label: 'Biomass', color: '#4A7556' },
 ];
 /** Dot radius in SVG units (640-wide map): area grows with capacity. */
-export const plantRadius = (mw: number) => +(1.6 + 0.085 * Math.sqrt(mw)).toFixed(2);
+// small plants stay small so clusters read as texture; the big stations stand out
+export const plantRadius = (mw: number) => +(mw < 10 ? 1.7 : 2.2 + 0.1 * Math.sqrt(mw)).toFixed(2);
 
 let _layers: LayerModel[] | undefined;
 export function homeLayers(): LayerModel[] {

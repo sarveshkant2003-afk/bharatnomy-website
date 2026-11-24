@@ -37,7 +37,7 @@ if (census && act) {
   const plantCards = JSON.parse(census.dataset.plantCards!) as string[];
   const fills = Array.from(census.querySelectorAll<SVGPathElement>('.census-fill path'));
   const ndPaths = Array.from(census.querySelectorAll<SVGPathElement>('.census-nodata path'));
-  const dated = Array.from(census.querySelectorAll<SVGCircleElement>('.census-plants circle[data-y]')).map((c) => ({ c, y: +c.dataset.y!, o: -1 }));
+  const dated = Array.from(census.querySelectorAll<SVGGElement>('.census-plants .pl[data-y]')).map((c) => ({ c, y: +c.dataset.y!, o: -1 }));
   // colour blending: frames are class colours (#rrggbb); mix them channel by channel
   const rgb = (h: string) => [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16));
   const rgbCache = new Map<string, number[]>();
@@ -248,7 +248,7 @@ if (census && act) {
       g.addEventListener('pointermove', move);
       g.addEventListener('pointerleave', () => { card.hidden = true; g.classList.remove('is-hover'); });
     });
-    plantG.querySelectorAll<SVGCircleElement>('circle').forEach((c) => {
+    plantG.querySelectorAll<SVGGElement>('.pl').forEach((c) => {
       c.addEventListener('pointerenter', () => { card.textContent = plantCards[+c.dataset.i!]; card.hidden = false; c.classList.add('is-hover'); });
       c.addEventListener('pointermove', move);
       c.addEventListener('pointerleave', () => { card.hidden = true; c.classList.remove('is-hover'); });

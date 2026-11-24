@@ -66,7 +66,7 @@ const plantsHref = `${DATA_REPO}/tree/${DATA_REF}/${HOME_LAYERS.plants.path}`;
         {layers.map((L, i) => <button type="button" class="layer-btn label" data-layer-btn={L.id} aria-pressed={i === 0 ? 'true' : 'false'}>{L.button}</button>)}
       </div>
       <button type="button" class="plant-toggle label" data-plants-toggle aria-pressed="true">
-        <svg viewBox="0 0 14 14" width="14" height="14" aria-hidden="true"><circle cx="7" cy="7" r="4" /></svg><span class="m-long">Power plants</span><span class="m-short">Plants</span>
+        <svg viewBox="0 0 14 14" width="14" height="14" aria-hidden="true"><circle cx="7" cy="7" r="3.6" /></svg><span class="m-long">Power plants</span><span class="m-short">Plants</span>
       </button>
       <button type="button" class="plant-toggle fuel-toggle label" data-fuel-toggle aria-pressed="false"><span class="m-long">By fuel</span><span class="m-short">Fuel</span></button>
     </div>
@@ -91,9 +91,12 @@ const plantsHref = `${DATA_REPO}/tree/${DATA_REF}/${HOME_LAYERS.plants.path}`;
         ))}
       </g>
       <g class="census-plants" data-plants aria-hidden="true">
-        {plants.map((p, i) => p.year
-          ? <circle data-i={i} data-y={p.year} cx={p.cx} cy={p.cy} r={p.r} style={`--c:${p.color}`} />
-          : <circle class="undated" data-i={i} cx={p.cx} cy={p.cy} r={p.r} style={`--c:${p.color}`} />)}
+        {plants.map((p, i) => (
+          <g class:list={['pl', !p.year && 'undated', p.mw >= 500 && 'big', p.mw < 10 && 'tiny']} data-i={i} data-y={p.year ?? undefined} style={`--fc:${p.color}`}>
+            {p.mw >= 500 && <circle class="pl-ring" cx={p.cx} cy={p.cy} r={(p.r + 3.2).toFixed(2)} />}
+            <circle class="pl-dot" cx={p.cx} cy={p.cy} r={p.r} />
+          </g>
+        ))}
       </g>
     </svg>
     <div class="census-tally label" data-tally-card hidden></div>
@@ -116,7 +119,11 @@ const plantsHref = `${DATA_REPO}/tree/${DATA_REF}/${HOME_LAYERS.plants.path}`;
         <ul class="plant-legend-list" data-fuel-legend hidden>
           {fuelsPresent.map((f) => <li><svg viewBox="0 0 12 12" width="12" height="12" aria-hidden="true"><circle cx="6" cy="6" r="4.5" style={`fill:${f.color}`} /></svg><span class="mono">{f.label}<span class="m-long"> {f.n}</span></span></li>)}
         </ul>
-        <p class="mono plant-note">● appears in its commissioning year · ○ year not published</p>
+        <ul class="mono plant-note">
+          <li><svg viewBox="0 0 16 16" width="13" height="13" aria-hidden="true"><circle class="ln-dot" cx="8" cy="8" r="3.8" /></svg>appears in its commissioning year</li>
+          <li><svg viewBox="0 0 16 16" width="13" height="13" aria-hidden="true"><circle class="ln-ring" cx="8" cy="8" r="3.8" /></svg>year not published</li>
+          <li><svg viewBox="0 0 16 16" width="13" height="13" aria-hidden="true"><circle class="ln-big" cx="8" cy="8" r="7" /><circle class="ln-dot" cx="8" cy="8" r="3.8" /></svg>500 MW or more</li>
+        </ul>
       </figure>
     </div>
   </div>
